@@ -226,12 +226,13 @@ class UnreadLetters extends MaintenanceModule {
 			);
 
 			// Render to PDF and send
-			$file = $TeX->RenderToPDF(false);
+			$file = $TeX->RenderToPDF(true);
 			$fax = CreateObject('_FreeMED.Fax', $file, array (
 				'sender' => PACKAGENAME.' v'.DISPLAY_VERSION
 			));
 			$output = $fax->send($rec_save['letterfax']);
 			$display_buffer .= "<b>".$output."</b><br/>\n";
+			unlink($file);
 		}
 
 		$GLOBALS['sql']->query("DELETE FROM lettersrepository ".
