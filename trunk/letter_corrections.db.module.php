@@ -27,15 +27,14 @@ class LetterCorrections extends MaintenanceModule {
 
 	function notify ( ) {
 		// Get current user object
-		$user = CreateObject('FreeMED.User');
-
-		// If user isn't a physician, no handler required
-		if (!$user->isPhysician()) return false;
+		if (!is_object($GLOBALS['this_user'])) {
+			$GLOBALS['this_user'] = CreateObject('FreeMED.User');
+		}
 
 		// Get number of items to correct
 		$result = $GLOBALS['sql']->query("SELECT COUNT(*) AS count ".
 			"FROM lettersrepository ".
-			"WHERE letterfrom='".addslashes($user->getPhysician())."' ".
+			"WHERE letteruser='".addslashes($GLOBALS['this_user']->user_number)."' ".
 			"AND LENGTH(lettercorrect) > 0");
 		$r = $GLOBALS['sql']->fetch_array($result);
 		if ($r['count'] < 1) { return false; }
@@ -51,15 +50,10 @@ class LetterCorrections extends MaintenanceModule {
 			$GLOBALS['this_user'] = CreateObject('FreeMED.User');
 		}
 
-		// Only show something if they are a physician
-		if (!$GLOBALS['this_user']->isPhysician()) {
-			return false;
-		}
-
 		// Get number of items to correct
 		$result = $GLOBALS['sql']->query("SELECT COUNT(*) AS count ".
 			"FROM lettersrepository ".
-			"WHERE letterfrom='".addslashes($GLOBALS['this_user']->getPhysician())."' ".
+			"WHERE letteruser='".addslashes($GLOBALS['this_user']->user_number)."' ".
 			"AND LENGTH(lettercorrect) > 0");
 		$r = $GLOBALS['sql']->fetch_array($result);
 		if ($r['count'] < 1) { return false; }
@@ -99,7 +93,7 @@ class LetterCorrections extends MaintenanceModule {
 			}
                 }
 		$query = "SELECT * FROM lettersrepository ".
-			"WHERE letterfrom='".addslashes($this_user->getPhysician())."' ".
+			"WHERE letteruser='".addslashes($this_user->user_number)."' ".
 			"AND LENGTH(lettercorrect) > 0 ".
                         freemed::itemlist_conditions(false)." ".
                         ( $condition ? 'AND '.$condition : '' )." ".
@@ -130,6 +124,11 @@ class LetterCorrections extends MaintenanceModule {
                 $display_buffer .= "\n<p/>\n";
 	} // end method view
 
+	function del ( ) {
+		$this->table_name = 'lettersrepository';
+		$this->_del();
+	}
+
 	function display ( ) {
 		global $display_buffer, $id;
 
@@ -139,7 +138,6 @@ class LetterCorrections extends MaintenanceModule {
 		}
 
 		if ($_REQUEST['submit_action'] == __("Delete")) {
-			$this->table_name = 'lettersrepository';
 			$this->del();
 			return false;
 		}
