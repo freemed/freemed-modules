@@ -1,6 +1,6 @@
 <?php
 	// $Id$
-	// $Author: rufustfirefly $
+	// $Author$
 
 LoadObjectDependency('_FreeMED.MaintenanceModule');
 
