@@ -4,17 +4,16 @@
 
 LoadObjectDependency('_FreeMED.MaintenanceModule');
 
-class UnreadLetters extends MaintenanceModule {
+class LetterCorrections extends MaintenanceModule {
 
-	var $MODULE_NAME = "Unread Letters";
+	var $MODULE_NAME = "Letter Corrections";
 	var $MODULE_VERSION = "0.1";
 	var $MODULE_AUTHOR = "jeff@ourexchange.net";
-	var $MODULE_DESCRIPTION = "Providers can verify letters that have been entered into the letters repository and have them automatically faxed to the appropriate destination.";
 	var $MODULE_HIDDEN = true;
 
 	var $MODULE_FILE = __FILE__;
 
-	function UnreadLetters ( ) {
+	function LetterCorrections ( ) {
 		// Set menu notify on the sidebar (or wherever the current
 		// template decides to hide the notify items)
 		$this->_SetHandler('MenuNotifyItems', 'notify');
@@ -24,26 +23,24 @@ class UnreadLetters extends MaintenanceModule {
 
 		// Call parent constructor
 		$this->MaintenanceModule();
-	} // end constructor UnreadLetters
+	} // end constructor LetterCorrections
 
 	function notify ( ) {
-		// Try to import the user object
-		if (!is_object($GLOBALS['this_user'])) {
-			$GLOBALS['this_user'] = CreateObject('FreeMED.User');
-		}
+		// Get current user object
+		$user = CreateObject('FreeMED.User');
 
 		// If user isn't a physician, no handler required
-		if (!$GLOBALS['this_user']->isPhysician()) return false;
+		if (!$user->isPhysician()) return false;
 
-		// Get number of unread letters from table
+		// Get number of items to correct
 		$result = $GLOBALS['sql']->query("SELECT COUNT(*) AS count ".
 			"FROM lettersrepository ".
-			"WHERE letterfrom='".addslashes($GLOBALS['this_user']->getPhysician())."' ".
-			"AND lettercorrect=''");
+			"WHERE letterfrom='".addslashes($user->getPhysician())."' ".
+			"AND LENGTH(lettercorrect) > 0");
 		$r = $GLOBALS['sql']->fetch_array($result);
 		if ($r['count'] < 1) { return false; }
 
-		return array (sprintf(__("You have %d unread letters"), $r['count']), 
+		return array (sprintf(__("You have %d letters to correct"), $r['count']), 
 			"module_loader.php?module=".urlencode(get_class($this)).
 			"&action=display");
 	} // end method notify
@@ -59,19 +56,19 @@ class UnreadLetters extends MaintenanceModule {
 			return false;
 		}
 
-		// Get number of unread letters from table
+		// Get number of items to correct
 		$result = $GLOBALS['sql']->query("SELECT COUNT(*) AS count ".
 			"FROM lettersrepository ".
 			"WHERE letterfrom='".addslashes($GLOBALS['this_user']->getPhysician())."' ".
-			"AND lettercorrect=''");
+			"AND LENGTH(lettercorrect) > 0");
 		$r = $GLOBALS['sql']->fetch_array($result);
 		if ($r['count'] < 1) { return false; }
 
 		return array (
-			__("Unread Letters"),
+			__("Letter Corrections"),
 			"<a href=\"module_loader.php?module=".urlencode(get_class($this)).
 			"&action=display\">".
-			sprintf(__("You have %d unread letters"), $r['count']).
+			sprintf(__("You have %d letters to correct"), $r['count']).
 			"</a>"
 		); 
 	} // end method MainMenuNotify
@@ -103,6 +100,7 @@ class UnreadLetters extends MaintenanceModule {
                 }
 		$query = "SELECT * FROM lettersrepository ".
 			"WHERE letterfrom='".addslashes($this_user->getPhysician())."' ".
+			"AND LENGTH(lettercorrect) > 0 ".
                         freemed::itemlist_conditions(false)." ".
                         ( $condition ? 'AND '.$condition : '' )." ".
                         "ORDER BY letterdt";
@@ -135,12 +133,7 @@ class UnreadLetters extends MaintenanceModule {
 	function display ( ) {
 		global $display_buffer, $id;
 
-		if ($_REQUEST['submit_action'] == __("Sign")) {
-			$this->mod();
-			return false;
-		}
-
-		if ($_REQUEST['submit_action'] == __("Return for Corrections")) {
+		if ($_REQUEST['submit_action'] == __("Send to Provider")) {
 			$this->mod();
 			return false;
 		}
@@ -153,6 +146,7 @@ class UnreadLetters extends MaintenanceModule {
 
 		$result = $GLOBALS['sql']->query("SELECT * FROM lettersrepository WHERE id='".addslashes($_REQUEST['id'])."'");
 		$r = $GLOBALS['sql']->fetch_array($result);
+		global $lettertext; $lettertext = $r['lettertext'];
 		$this_patient = CreateObject('FreeMED.Patient', $r['letterpatient']);
 		$display_buffer .= "
 		<form action=\"".$this->page_name."\" method=\"post\" name=\"myform\">
@@ -162,8 +156,11 @@ class UnreadLetters extends MaintenanceModule {
 		<input type=\"hidden\" name=\"date\" value=\"".prepare($r['urldate'])."\"/>
 		<input type=\"hidden\" name=\"been_here\" value=\"1\"/>
 		<div align=\"left\" style=\"border: 1px dotted; padding: 1em;\">
-		".prepare(str_replace("\n", "<br/>\n", $r['lettertext']))."
-
+		".freemed::rich_text_area('lettertext', 25, 70)."
+		</div>
+		<div>
+		<b>".__("Corrections")."</b><br/>
+		".prepare(str_replace("\n", "<br/>\n", $r['lettercorrect']))."
 		</div>
 		<div align=\"center\">
 		".html_form::form_table(array(
@@ -173,18 +170,9 @@ class UnreadLetters extends MaintenanceModule {
 			"Fax To Number" => $r['letterfax'],
 		))."
 		</div>
-		<div>
-		<b>".__("Corrections").":</b><br/>
-		".freemed::rich_text_area('corrections', 25, 70)."
-		</div>
-		<div>
-		<i>".__("By clicking on the 'Sign' button below, I agree that I am the physician in question and have reviewed this letter.")."</i>
-		</div>
 		<div align=\"center\">
 		<input type=\"submit\" name=\"submit_action\" ".
-		"class=\"button\" value=\"".__("Sign")."\"/>
-		<input type=\"submit\" name=\"submit_action\" ".
-		"class=\"button\" value=\"".__("Return for Corrections")."\"/>
+		"class=\"button\" value=\"".__("Send to Provider")."\"/>
 		<input type=\"submit\" name=\"submit_action\" ".
 		"class=\"button\" value=\"".__("Cancel")."\"/>
 		<input type=\"submit\" name=\"submit_action\" ".
@@ -202,82 +190,22 @@ class UnreadLetters extends MaintenanceModule {
 			$id = $_REQUEST['id'];
 		}
 
-		// If we're returning for corrections ...
-		if ($_REQUEST['submit_action'] == __("Return for Corrections")) {
-			$query = $GLOBALS['sql']->update_query(
-				'lettersrepository',
-				array (
-					'lettercorrect' => $_REQUEST['corrections']
-				),
-				array ( 'id' => $id )
-			);
-			$result = $GLOBALS['sql']->query($query);
-			syslog(LOG_INFO, "UnreadLetters| query = $query, result = $result");
-			if ($_id == -1) {
-				$GLOBALS['display_buffer'] .= '<br/>'.
-					template::link_bar(array(
-						__("View Patient Record") =>
-						'manage.php?id='.urlencode($rec['letterpatient']),
-						__("Return to Unread Letters Menu") =>
-						$this->page_name.'?module='.get_class($this)
-					));
-			}
-			return false;
-		} // end dealing with return for corrections
-		
-		$rec_save = $rec = freemed::get_link_rec($id, 'lettersrepository');
-
-		// Take out fields we don't need
-		unset($rec['letterfax']);
-		unset($rec['letteruser']);
-		unset($rec['lettercorrect']);
-		unset($rec['id']);
-
-		foreach ($rec AS $k => $v) {
-			if (!is_integer($k)) { $r[$k] = $v; }
-		}
-
 		// Create user object
 		$this_user = CreateObject('FreeMED.User');
 		
 		// Insert new table query in unread
-		$query = $GLOBALS['sql']->insert_query(
-			'letters',
-			$r
+		$query = $GLOBALS['sql']->update_query(
+			'lettersrepository',
+			array ( 
+				// Commit corrections
+				'lettertext' => $_REQUEST['lettertext'],
+				// Set as null so it doesn't appear here again
+				'lettercorrect' => ''
+			),
+			array ( 'id' => $id )
 		);
 		$result = $GLOBALS['sql']->query( $query );
-		$new_id = $GLOBALS['sql']->last_record ( $result, 'letters' );
-		syslog(LOG_INFO, "UnreadLetters| query = $query, result = $result, new_id = $new_id");
-
-		// If there's a fax number, send it.
-		if ($rec_save['letterfax']) {
-			// Load the letters module for printing
-			include_once(resolve_module('LettersModule'));
-			$l = new LettersModule ();
-
-			// Start up TeX renderer
-			$TeX = CreateObject('FreeMED.TeX', array (
-				'title' => $title,
-				'heading' => $heading,
-				'physician' => $physician
-			));
-			$TeX->_buffer = $TeX->RenderFromTemplate(
-				$l->print_template,
-				$l->_print_mapping($TeX, $new_id)
-			);
-
-			// Render to PDF and send
-			$file = $TeX->RenderToPDF(true);
-			$fax = CreateObject('_FreeMED.Fax', $file, array (
-				'sender' => PACKAGENAME.' v'.DISPLAY_VERSION
-			));
-			$output = $fax->send($rec_save['letterfax']);
-			$display_buffer .= "<b>".$output."</b><br/>\n";
-			unlink($file);
-		}
-
-		$GLOBALS['sql']->query("DELETE FROM lettersrepository ".
-			"WHERE id='".addslashes($id)."'");
+		syslog(LOG_INFO, "LetterCorrections| query = $query, result = $result");
 
 		global $refresh;
 		//$refresh = $page_name."?module=".get_class($this);
@@ -287,14 +215,14 @@ class UnreadLetters extends MaintenanceModule {
 				template::link_bar(array(
 					__("View Patient Record") =>
 					'manage.php?id='.urlencode($rec['letterpatient']),
-					__("Return to Unread Letters Menu") =>
+					__("Return to Letter Corrections Menu") =>
 					$this->page_name.'?module='.get_class($this)
 				));
 		}
 	} // end method mod
 
-} // end class UnreadLetters
+} // end class LetterCorrections
 
-register_module('UnreadLetters');
+register_module('LetterCorrections');
 
 ?>

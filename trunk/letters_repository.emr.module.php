@@ -8,10 +8,10 @@ class LettersRepository extends EMRModule {
 
 	var $MODULE_NAME    = "Letters Repository";
 	var $MODULE_AUTHOR  = "jeff b (jeff@ourexchange.net)";
-	var $MODULE_VERSION = "0.1";
+	var $MODULE_VERSION = "0.1.1";
 	var $MODULE_FILE    = __FILE__;
 
-	var $PACKAGE_MINIMUM_VERSION = '0.7.0';
+	var $PACKAGE_MINIMUM_VERSION = '0.7.2';
 
 	var $record_name    = "Letters";
 	var $table_name     = "lettersrepository";
@@ -37,6 +37,9 @@ class LettersRepository extends EMRModule {
 			$this->disable_patient_box = true;
 		}
 
+		global $this_user;
+		if (!is_object($this_user)) { $this_user = CreateObject('_FreeMED.User'); }
+
 		// Variables for add/mod
 		global $patient;
 		$this->variables = array (
@@ -53,6 +56,8 @@ class LettersRepository extends EMRModule {
 			"lettertext",
 			"letterpatient" => $patient,
 			"lettertypist" => html_form::combo_assemble('lettertypist'),
+			"letteruser" => $this_user->user_number,
+			"lettercorrect" => '',
 			"letterfax",
 			"locked" => '0' // needed for when it is added
 		);
@@ -69,6 +74,8 @@ class LettersRepository extends EMRModule {
 			"lettersent" => SQL__INT_UNSIGNED(0),
 			"letterpatient" => SQL__INT_UNSIGNED(0),
 			"lettertypist" => SQL__VARCHAR(50),
+			"letteruser" => SQL__INT_UNSIGNED(0),
+			"lettercorrect" => SQL__TEXT,
 			"letterfax" => SQL__VARCHAR(16),
 			"locked" => SQL__INT_UNSIGNED(0),
 			"id" => SQL__SERIAL
@@ -443,6 +450,20 @@ class LettersRepository extends EMRModule {
 	function _update() {
 		global $sql;
 		$version = freemed::module_version($this->MODULE_NAME);
+
+		// Version 0.1.1
+		//
+		//	Tag with user number for tracking back and
+		//	correction flag
+		//
+		if (!version_check($version, '0.1.1')) {
+			$sql->query('ALTER TABLE '.$this->table_name.' '.
+				 'ADD COLUMN letteruser INT UNSIGNED AFTER lettertypist');
+			$sql->query('UPDATE '.$this->table_name.' SET letteruser=\'0\'');
+			$sql->query('ALTER TABLE '.$this->table_name.' '.
+				 'ADD COLUMN lettercorrect INT UNSIGNED AFTER letteruser');
+			$sql->query('UPDATE '.$this->table_name.' SET lettercorrect=\'\'');
+		}
 	} // end method _update
 
 } // end class LettersRepository
