@@ -153,6 +153,7 @@ class UnreadLetters extends MaintenanceModule {
 
 		$result = $GLOBALS['sql']->query("SELECT * FROM lettersrepository WHERE id='".addslashes($_REQUEST['id'])."'");
 		$r = $GLOBALS['sql']->fetch_array($result);
+		$to_provider = CreateObject('FreeMED.Physician', $r['letterto']);
 		$this_patient = CreateObject('FreeMED.Patient', $r['letterpatient']);
 		$display_buffer .= "
 		<form action=\"".$this->page_name."\" method=\"post\" name=\"myform\">
@@ -169,6 +170,7 @@ class UnreadLetters extends MaintenanceModule {
 		".html_form::form_table(array(
 			"Date" => $r['letterdt'],
 			"Entered By" => $r['lettertypist'],
+			"To" => $to_provider->fullName(),
 			"Patient" => $this_patient->fullName(),
 			"Fax To Number" => $r['letterfax'],
 		))."
