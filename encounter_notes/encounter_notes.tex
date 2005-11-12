@@ -1,0 +1,297 @@
+%%
+%%      $ID: progress_notes.tex,v 1.5 2005/05/05 23:06:23 rufustfirefly Exp $
+%%	$Author$
+%%
+%%	FreeMED TeX Template
+%%	Progress Notes
+%%
+
+\documentclass{article}
+
+% No normal header, footer, etc
+% Extra room on bottom and left for bindings, etc
+\usepackage[top=0.5in,left=1.2in,right=0.5in,bottom=1.2in,nohead,nofoot]{geometry}
+% Relative size package
+\usepackage{relsize}
+
+% Macro for progress-note type headers
+\newcommand{\sheading}[1]{\textbf{#1:}}
+
+\begin{document}
+
+% Deal with the document "header". For now, we're just looking at a one-time
+% only display. FIXME: Migrate this to a header.
+\begin{center}
+        {\relsize{1}\textbf{**link:pnotesdoc:physician:phypracname**}} \\
+        {\relsize{-1}\textsl{**method:Physician:fullName:pnotesdoc**}} \\
+        \textsl{**link:pnotesdoc:physician:phyaddr1a**, **link:pnotesdoc:physician:phycitya**, **link:pnotesdoc:physician:phystatea** **link:pnotesdoc:physician:phyzipa** } \\
+        \textsl{phone **link:pnotesdoc:physician:phyphonea:phone** fax **link:pnotesdoc:physician:phyfaxa:phone**}
+\end{center}
+
+\begin{tabular}{ll}
+	NAME:	&	**method:Patient:fullName:pnotespat**	\\
+	CHART:	&	**link:pnotespat:patient:ptid** 	\\
+	DOB:	&	**link:pnotespat:patient:ptdob:date**	\\
+	DATE:	&	**field:pnotesdt:date**
+\end{tabular}
+
+% Nice fixed block with \cr's in between them
+\
+\section{VITAL SIGNS}
+\par
+\
+**if:exists:pnotesheight**
+\sheading{Ht} & **field:pnotesheight** 
+**fi**
+**if:exists:pnotesweight**
+\sheading{Wt} & **field:pnotesweight**
+**fi**
+**if:exists:pnotessbp**
+\sheading{BP} & **field:pnotessbp**/**field:pnotesdbp**
+**fi**
+**if:exists:pnotesheartrate**
+\sheading{Pulse} & **field:pnotesheartrate** 
+**fi**
+**if:exists:pnotesresprate**
+\sheading{Resp} & **field:pnotesresprate**
+**fi**
+**if:exists:pnotestemp**
+\sheading{Temp} & **field:pnotestemp**
+**fi**
+**if:exists:pnotesbmi**
+\sheading{BMI} & **field:pnotesbmi**
+**fi**
+**if:exists:pnotesgeneral**
+\sheading{General} & **field:pnotesgeneral**
+**fi**
+\  &  \ 
+
+**if:exists:pnotes_S**
+\
+\section{PROGRESS NOTES}
+\par
+\
+**fi**
+
+**if:exists:pnotes_S**
+\sheading{Subjective} **field:pnotes_S**
+\par
+**fi**
+
+**if:exists:pnotes_O**
+\sheading{Objective} **field:pnotes_O**
+\par
+**fi**
+
+**if:exists:pnotes_A**
+\sheading{Assessment} **field:pnotes_A**
+\par
+**fi**
+
+**if:exists:pnotes_P**
+\sheading{Plan} **field:pnotes_P**
+\par
+**fi**
+
+**if:exists:pnotes_I**
+\sheading{Internal} **field:pnotes_I**
+\par
+**fi**
+
+**if:exists:pnotes_E**
+\sheading{Education} **field:pnotes_E**
+\par
+**fi**
+
+**if:exists:pnotes_R**
+\sheading{Rx} **field:pnotes_R**
+\par
+**fi**
+
+**if:exists:pnotescc**
+\
+\section{CHIEF COMPLAINT} **field:pnotescc**
+\par
+**fi**
+
+**if:exists:pnoteshpi**
+\
+\section{HISTORY OF PRESENT ILLNESS} **field:pnoteshpi**
+\par
+**fi**
+
+**if:exists:pnotesph**
+\
+\section{PAST HISTORY} **field:pnotesph**
+\par
+**fi**
+
+**if:exists:pnotesfh**
+\
+\section{FAMILY HISTORY} **field:pnotesfh**
+\par
+**fi**
+
+**if:exists:pnotessh**
+\
+\section{SOCIAL HISTORY} **field:pnotessh**
+\par
+**fi**
+
+**if:exists:pnotesroscons**
+\
+\section{REVIEW OF SYSTEMS} 
+\par
+\
+**fi**
+
+**if:exists:pnotesroscons**
+\sheading{Constitutional} **field:pnotesroscons**
+\par
+**fi**
+
+**if:exists:pnotesroseyes**
+\sheading{Eyes} **field:pnotesroseyes**
+\par
+**fi**
+
+**if:exists:pnotesrosent**
+\sheading{ENT} **field:pnotesrosent**
+\par
+**fi**
+
+**if:exists:pnotesroscv**
+\sheading{Cardiovascular} **field:pnotesroscv**
+\par
+**fi**
+
+**if:exits:pnotesrosresp**
+\sheading{Respiratory}  **field:pnotesrosresp**
+\par
+**fi**
+
+
+**if:exists:pnotesrosgi**
+\sheading{GI} **field:pnotesrosgi**
+\par
+**fi**
+
+**if:exists:pnotesrosgu**
+\sheading{GU} **field:pnotesrosgu**
+\par
+**fi**
+
+**if:exists:pnotesrosms**
+\sheading{Musculoskeletal} **field:pnotesrosms**
+\par
+**fi**
+
+**if:exists:pnotesrosskinbreast**
+\sheading{Skin/breast} **field:pnotesrosskinbreast**
+\par
+**fi**
+
+**if:exists:pnotesrosneuro**
+\sheading{Neurological} **field:pnotesrosneuro**
+\par
+**fi**
+
+**if:exists:pnotesrospsych**
+\sheading{Psychiatric} **field:pnotesrospsych**
+\par
+**fi**
+
+**if:exists:pnotesrosendo**
+\sheading{Endocrine} **field:pnotesrosendo**
+\par
+**fi**
+
+**if:exists:pnotesroshemelymph**
+\sheading{Hematologic/lymphatic} **field:pnotesroshemelymph**
+\par
+**fi**
+
+**if:exists:pnotesrosallergyimmune**
+\sheading{Allergy/immune} **field:pnotesrosallergyimmune**
+\par
+**fi**
+
+**if:exists:pnotespeeyes**
+\
+\section {PHYSICAL EXAMINATION}
+\par
+\
+**fi**
+
+**if:exists:pnotespeeyes**
+\sheading{Eyes} **field:pnotespeeyes**
+\par
+**fi**
+
+**if:exists:pnotespeent**
+\sheading{ENT} **field:pnotespeent**
+\par
+**fi**
+
+**if:exists:pnotespeneck**
+\sheading{Neck} **field:pnotespeneck**
+\par
+**fi**
+
+**if:exists:pnotesperesp**
+\sheading{Respiratory} **field:pnotesperesp**
+\par
+**fi**
+
+**if:exists:pnotespecv**
+\sheading{Cardiovascular} **field:pnotespecv**
+\par
+**fi**
+
+**if:exists:pnotespechestbreast**
+\sheading{Chest/breast} **field:pnotespechestbreast**
+\par
+**fi**
+
+**if:exists:pnotespegiabd**
+\sheading{GI/abdomen} **field:pnotespegiabd**
+\par
+**fi**
+
+**if:exists:pnotespegu**
+\sheading{Genitourinary} **field:pnotespegu**
+\par
+**fi**
+
+**if:exits:pnotespelymph**
+\sheading{Lymphatics}  **field:pnotespelymph**
+\par
+**fi**
+
+
+**if:exists:pnotespems**
+\sheading{Musculoskeletal} **field:pnotespems**
+\par
+**fi**
+
+**if:exists:pnotespeskin**
+\sheading{Skin} **field:pnotespeskin**
+\par
+**fi**
+
+**if:exists:pnotespeneuro**
+\sheading{Neurological} **field:pnotespeneuro**
+\par
+**fi**
+
+**if:exists:pnotespepsych**
+\sheading{Psychiatric} **field:pnotespepsych**
+\par
+**fi**
+\
+**if:exists:pnoteshandp**
+\section {H&P} **field:pnoteshandp**
+\par
+**fi**
+\
+\end{document}
