@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<freemedpackage>
+	<information>
+		<name>Drug Samples</name>
+		<author>Jeff Buchbinder</author>
+		<version>0.1</version>
+		<description>Modules for keeping track of drug samples given to patients.</description>
+	</information>
+	<install>
+		<directory>modules/drug_samples/</directory>
+		<file>
+			<source>drug_samples.emr.module.php</source>
+			<destination>modules/drug_samples/</destination>
+		</file>
+		<file>
+			<source>drug_samples_inventory.db.module.php</source>
+			<destination>modules/drug_samples/</destination>
+		</file>
+	</install>
+</freemedpackage>

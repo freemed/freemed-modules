@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<freemedpackage>
+	<information>
+		<name>Unread Letters</name>
+		<author>Jeff Buchbinder</author>
+		<version>0.1</version>
+		<description>Modules for allowing corrections and provider validation of outgoing letters.</description>
+	</information>
+	<install>
+		<directory>modules/unread_letters/</directory>
+		<file>
+			<source>letter_corrections.db.module.php</source>
+			<destination>modules/unread_letters/</destination>
+		</file>
+		<file>
+			<source>letters_repository.emr.module.php</source>
+			<destination>modules/unread_letters/</destination>
+		</file>
+		<file>
+			<source>unread_letters.db.module.php</source>
+			<destination>modules/unread_letters/</destination>
+		</file>
+	</install>
+</freemedpackage>
