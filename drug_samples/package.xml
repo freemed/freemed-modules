@@ -7,7 +7,9 @@
 		<description>Modules for keeping track of drug samples given to patients.</description>
 	</information>
 	<install>
-		<directory>modules/drug_samples/</directory>
+		<directory>
+			<destination>modules/drug_samples/</destination>
+		</directory>
 		<file>
 			<source>drug_samples.emr.module.php</source>
 			<destination>modules/drug_samples/</destination>

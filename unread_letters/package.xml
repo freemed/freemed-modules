@@ -7,7 +7,9 @@
 		<description>Modules for allowing corrections and provider validation of outgoing letters.</description>
 	</information>
 	<install>
-		<directory>modules/unread_letters/</directory>
+		<directory>
+			<destination>modules/unread_letters/</destination>
+		</directory>
 		<file>
 			<source>letter_corrections.db.module.php</source>
 			<destination>modules/unread_letters/</destination>
