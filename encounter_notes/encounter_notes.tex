@@ -3,74 +3,75 @@
 %%	$Author$
 %%
 %%	FreeMED TeX Template
-%%	Progress Notes
+%%	Encounter Notes -- adapted from similar Progress Notes TeX Template
 %%
 
 \documentclass{article}
-
-% No normal header, footer, etc
 % Extra room on bottom and left for bindings, etc
-\usepackage[top=0.5in,left=1.2in,right=0.5in,bottom=1.2in,nohead,nofoot]{geometry}
+\usepackage[top=0.5in,left=0.5in,right=0.5in,bottom=0.5in,nohead,nofoot]{geometry}
 % Relative size package
 \usepackage{relsize}
+
+\usepackage{fancyhdr}
+%%\pagestyle{fancy}
+\lfoot{**link:pnotespat:patient:ptid**, **field:pnotesdt:date**}
 
 % Macro for progress-note type headers
 \newcommand{\sheading}[1]{\textbf{#1:}}
 
 \begin{document}
-
 % Deal with the document "header". For now, we're just looking at a one-time
 % only display. FIXME: Migrate this to a header.
-\begin{center}
-        {\relsize{1}\textbf{**link:pnotesdoc:physician:phypracname**}} \\
-        {\relsize{-1}\textsl{**method:Physician:fullName:pnotesdoc**}} \\
+\begin{center}        
+	{\relsize{1}\textbf{**link:pnotesdoc:physician:phypracname**}} \\
+	{\relsize{-1}\textsl{**method:Physician:fullName:pnotesdoc**}} \\
         \textsl{**link:pnotesdoc:physician:phyaddr1a**, **link:pnotesdoc:physician:phycitya**, **link:pnotesdoc:physician:phystatea** **link:pnotesdoc:physician:phyzipa** } \\
         \textsl{phone **link:pnotesdoc:physician:phyphonea:phone** fax **link:pnotesdoc:physician:phyfaxa:phone**}
 \end{center}
 
 \begin{tabular}{ll}
 	NAME:	&	**method:Patient:fullName:pnotespat**	\\
-	CHART:	&	**link:pnotespat:patient:ptid** 	\\
+	CHART  :&	**link:pnotespat:patient:ptid** 	\\
 	DOB:	&	**link:pnotespat:patient:ptdob:date**	\\
 	DATE:	&	**field:pnotesdt:date**
 \end{tabular}
 
 % Nice fixed block with \cr's in between them
-\
-\section{VITAL SIGNS}
+\begin{itemize}
+\item{VITAL SIGNS}
 \par
-\
-**if:exists:pnotesheight**
-\sheading{Ht} & **field:pnotesheight** 
-**fi**
-**if:exists:pnotesweight**
-\sheading{Wt} & **field:pnotesweight**
-**fi**
-**if:exists:pnotessbp**
-\sheading{BP} & **field:pnotessbp**/**field:pnotesdbp**
+\ 
+**if:exists:pnotestemp**
+{Temp: }**field:pnotestemp**
 **fi**
 **if:exists:pnotesheartrate**
-\sheading{Pulse} & **field:pnotesheartrate** 
+{     Pulse: }**field:pnotesheartrate**
 **fi**
 **if:exists:pnotesresprate**
-\sheading{Resp} & **field:pnotesresprate**
+{     Resp: }**field:pnotesresprate**
 **fi**
-**if:exists:pnotestemp**
-\sheading{Temp} & **field:pnotestemp**
+**if:exists:pnotessbp**
+{     BP: }**field:pnotessbp**/**field:pnotesdbp**
+**fi**
+**if:exists:pnotesheight**
+{Ht: }**field:pnotesheight**
+**fi**
+**if:exists:pnotesweight**
+{     Wt: }**field:pnotesweight**
 **fi**
 **if:exists:pnotesbmi**
-\sheading{BMI} & **field:pnotesbmi**
+{     BMI: }**field:pnotesbmi**
 **fi**
+
 **if:exists:pnotesgeneral**
-\sheading{General} & **field:pnotesgeneral**
+\item{GENERAL} & **field:pnotesgeneral**
 **fi**
-\  &  \ 
+%%\  &  \ 
 
 **if:exists:pnotes_S**
 \
-\section{PROGRESS NOTES}
+\item{PROGRESS NOTES}
 \par
-\
 **fi**
 
 **if:exists:pnotes_S**
@@ -78,71 +79,70 @@
 \par
 **fi**
 
-**if:exists:pnotes_O**
+**if:exists:pnotes_S**
 \sheading{Objective} **field:pnotes_O**
 \par
 **fi**
 
-**if:exists:pnotes_A**
+**if:exists:pnotes_S**
 \sheading{Assessment} **field:pnotes_A**
 \par
 **fi**
 
-**if:exists:pnotes_P**
+**if:exists:pnotes_S**
 \sheading{Plan} **field:pnotes_P**
 \par
 **fi**
 
-**if:exists:pnotes_I**
-\sheading{Internal} **field:pnotes_I**
+**if:exists:pnotes_S**
+\sheading{Interval} **field:pnotes_I**
 \par
 **fi**
 
-**if:exists:pnotes_E**
+**if:exists:pnotes_S**
 \sheading{Education} **field:pnotes_E**
 \par
 **fi**
 
-**if:exists:pnotes_R**
+**if:exists:pnotes_S**
 \sheading{Rx} **field:pnotes_R**
 \par
 **fi**
 
 **if:exists:pnotescc**
 \
-\section{CHIEF COMPLAINT} **field:pnotescc**
+\item{CHIEF COMPLAINT} **field:pnotescc**
 \par
 **fi**
 
 **if:exists:pnoteshpi**
 \
-\section{HISTORY OF PRESENT ILLNESS} **field:pnoteshpi**
+\item{HISTORY OF PRESENT ILLNESS} **field:pnoteshpi**
 \par
 **fi**
 
 **if:exists:pnotesph**
 \
-\section{PAST HISTORY} **field:pnotesph**
+\item{PAST HISTORY} **field:pnotesph**
 \par
 **fi**
 
 **if:exists:pnotesfh**
 \
-\section{FAMILY HISTORY} **field:pnotesfh**
+\item{FAMILY HISTORY} **field:pnotesfh**
 \par
 **fi**
 
 **if:exists:pnotessh**
 \
-\section{SOCIAL HISTORY} **field:pnotessh**
+\item{SOCIAL HISTORY} **field:pnotessh**
 \par
 **fi**
 
 **if:exists:pnotesroscons**
 \
-\section{REVIEW OF SYSTEMS} 
+\item{REVIEW OF SYSTEMS} 
 \par
-\
 **fi**
 
 **if:exists:pnotesroscons**
@@ -169,7 +169,6 @@
 \sheading{Respiratory}  **field:pnotesrosresp**
 \par
 **fi**
-
 
 **if:exists:pnotesrosgi**
 \sheading{GI} **field:pnotesrosgi**
@@ -218,9 +217,8 @@
 
 **if:exists:pnotespeeyes**
 \
-\section {PHYSICAL EXAMINATION}
+\item {PHYSICAL EXAMINATION}
 \par
-\
 **fi**
 
 **if:exists:pnotespeeyes**
@@ -289,9 +287,60 @@
 \par
 **fi**
 \
-**if:exists:pnoteshandp**
-\section {H&P} **field:pnoteshandp**
+**if:lengthge:pnoteshandp:14**
+\item {FREE FORM ENTRY} **field:pnoteshandp**
 \par
 **fi**
 \
+**if:not:pnotes_S**
+\item{ASSESSMENT} **field:pnotes_A**
+\par
+**fi**
+\
+**if:not:pnotes_S**
+\item{PLAN} **field:pnotes_P**
+\par
+**fi**
+\
+**if:not:pnotes_S**
+\item{Rx} **field:pnotes_R**
+\par
+**fi**
+
+**if:exists:pnotes_R**
+\eject
+\begin{center}
+	{\relsize{1}\textbf{**link:pnotesdoc:physician:phypracname**}} \\
+        {\relsize{-1}\textsl{**method:Physician:fullName:pnotesdoc**}} \\
+        \textsl{**link:pnotesdoc:physician:phyaddr1a**, **link:pnotesdoc:physician:phycitya**, **link:pnotesdoc:physician:phystatea** **link:pnotesdoc:physician:phyzipa** } \\
+        \textsl{phone **link:pnotesdoc:physician:phyphonea:phone** fax **link:pnotesdoc:physician:phyfaxa:phone**}  \\
+\end{center}
+\vskip 24pt
+\begin{tabular}{ll}
+	NAME:	&	**method:Patient:fullName:pnotespat**	\\
+	DOB:	&	**link:pnotespat:patient:ptdob:date**	\\
+	DATE:	&	**field:pnotesdt:date**
+\end{tabular}
+\vskip 18pt
+\textbf {Rx}
+\vskip 24pt
+**field:pnotes_R**
+\vskip 36pt
+\hrule
+{SUBSTITUTION PERMISSIBLE} & \hskip 3cm \textsl{**method:Physician:fullName:pnotesdoc**}
+
+\hskip 8.5cm \textsl{license number } & \textsl{**link:pnotesdoc:physician:phyid1**}
+
+\vskip 24pt
+{In order for a brand name product to be dispensed, the prescriber must hand
+write ``BRAND NECESSARY'' or ``BRAND MEDICALLY NECESSARY'' in the space
+below.}
+\vskip 36pt
+\hrule
+\vskip 48pt
+\hrule
+\text {DEA NUMBER}
+%%**fi**
+**fi**
+\end{itemize}
 \end{document}
