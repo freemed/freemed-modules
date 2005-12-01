@@ -6,7 +6,7 @@ LoadObjectDependency('FreeMED.MaintenanceModule');
 
 class EncounterNotesTemplates extends MaintenanceModule {
 	var $MODULE_NAME = "Encounter Notes Templates";
-	var $MODULE_AUTHOR = "rpl RPL121@verizon.net -- adapted from jeff b Progress Notes Templates";
+	var $MODULE_AUTHOR = "RPL (RPL121@verizon.net)";
 	var $MODULE_VERSION = "0.2";
 	var $MODULE_FILE = __FILE__;
 
@@ -20,12 +20,13 @@ class EncounterNotesTemplates extends MaintenanceModule {
 	var $table_name = "entemplate";
 
 	function EncounterNotesTemplates () {
-      	global $this_user;
+		// Check for, and if not there create, a user object
+		global $this_user;
 		if (!is_object($this_user)) {
 			$this_user = CreateObject('FreeMED.User');
 		}
-       
-	// Create table definition
+
+		// Create table definition
 		$this->table_definition = array(
 			'pntname' => SQL__VARCHAR(150),
 			'pntphy' => SQL__INT_UNSIGNED(0),
@@ -192,14 +193,16 @@ class EncounterNotesTemplates extends MaintenanceModule {
 			}
 		}
 
+ //RPL changed 'addform' to 'modform a few lines below
+
 		$GLOBALS['__freemed']['no_template_display'] = true;
 		$display_buffer .= "
 		<form ACTION=\"".$this->page_name."\" METHOD=\"POST\">
-		<input TYPE=\"HIDDEN\" NAME=\"module\" VALUE=\"".prepare($module)."\"/>
+	       	<input TYPE=\"HIDDEN\" NAME=\"module\" VALUE=\"".prepare($module)."\"/>
 		<input TYPE=\"HIDDEN\" NAME=\"id\" VALUE=\"".
 			prepare($GLOBALS['id'])."\"/>
-		<input TYPE=\"HIDDEN\" NAME=\"action\" VALUE=\"".
-			( ($GLOBALS['action']=='addform') ? 'add' : 'mod' )."\"/>
+		<input TYPE=\"TEXT\" NAME=\"action\" VALUE=\"".
+			( ($GLOBALS['action']=='modform') ? 'add' : 'mod' )."\"/>
 		<input TYPE=\"HIDDEN\" NAME=\"formname\" VALUE=\"".prepare($formname)."\"/>
 		".html_form::form_table(array(
 		
@@ -326,7 +329,7 @@ class EncounterNotesTemplates extends MaintenanceModule {
 			__("PE Psych") =>
 			html_form::text_area('pntpepsych', 'VIRTUAL', 5, 60),
 		
-			__("Free form entry") =>
+			__("H&P") =>
 			freemed::rich_text_area('pnthandp', 10, 40)
 					      
 					      ))."
@@ -346,7 +349,7 @@ class EncounterNotesTemplates extends MaintenanceModule {
 	// - generates a picklist widget of possible templates
 	function picklist ($varname, $formname) {
 		$query = "SELECT * FROM ".$this->table_name." ".
-			"WHERE pntphy='".$GLOBALS['this_user']->user_phy."' ".
+//RPL			"WHERE pntphy='".$GLOBALS['this_user']->user_phy."' ".
 			"ORDER BY pntname";
 		$result = $GLOBALS['sql']->query($query);
 		
