@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<freemedpackage>
+	<information>
+		<name>Multiple Procedure</name>
+		<author>Jeff</author>
+		<version>0.1</version>
+		<description>Multiple procedure entry</description>
+	</information>
+	<install>
+		<directory>
+			<destination>modules/multiple_procedure/</destination>
+		</directory>
+		<file>
+			<source>multiple_procedure.emr.module.php</source>
+			<destination>modules/multiple_procedure/</destination>
+		</file>
+	</install>
+</freemedpackage>
