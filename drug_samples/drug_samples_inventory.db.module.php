@@ -17,7 +17,7 @@ class DrugSampleInventory extends MaintenanceModule {
 	var $record_name = "Drug Sample Inventory";
 	var $table_name = "drugsampleinv";
 	var $order_fields = "logdate DESC";
-	var $widget_hash = "##lotdate## - ##drugformal## ##samplecountremain##/##samplecount## (##lot##)";
+	var $widget_hash = "##logdate## - ##drugformal## ##samplecountremain##/##samplecount## (##lot##)";
 
 	function DrugSampleInventory ( ) {
 		$this->table_definition = array (
@@ -197,7 +197,7 @@ class DrugSampleInventory extends MaintenanceModule {
 	// Wrap widget with this to make sure we only get certain things.
 	function widget ( $varname ) {
 		$conditions = "samplecountremain > 0";
-		parent::widget( $varname, $conditions );
+		return parent::widget( $varname, $conditions );
 	}
 
 	function deduct ( $id, $amount ) {
