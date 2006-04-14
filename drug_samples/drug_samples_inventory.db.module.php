@@ -96,6 +96,8 @@ class DrugSampleInventory extends MaintenanceModule {
 			"assignedto"
 		);
 
+		$this->order_field = "drugformal, logdate";
+
 		// Call parent constructor
 		$this->MaintenanceModule();
 	} // end constructor
@@ -191,6 +193,12 @@ class DrugSampleInventory extends MaintenanceModule {
 			array ("", "", 0)
 		);
 	} // end method view
+
+	// Wrap widget with this to make sure we only get certain things.
+	function widget ( $varname ) {
+		$conditions = "samplecountremain > 0";
+		parent::widget( $varname, $conditions );
+	}
 
 	function deduct ( $id, $amount ) {
 		syslog(LOG_INFO, "deduct $amount from record $id");
