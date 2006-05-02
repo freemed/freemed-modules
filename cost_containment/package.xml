@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<freemedpackage>
+	<information>
+		<name>Cost Containment</name>
+		<author>Jeff Buchbinder</author>
+		<version>0.1</version>
+		<description>Modules for keeping track of drug samples given to patients.</description>
+	</information>
+	<install>
+		<directory>
+			<destination>modules/cost_containment/</destination>
+		</directory>
+		<file>
+			<source>cost_containment.report.module.php</source>
+			<destination>modules/cost_containment/</destination>
+		</file>
+	</install>
+</freemedpackage>
