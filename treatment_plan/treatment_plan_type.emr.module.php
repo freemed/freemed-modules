@@ -35,6 +35,7 @@ class TreatmentPlanType extends EMRModule {
 	var $table_name = 'treatmentplantype';
 	var $patient_field = 'tptpatient';
 	var $date_field = 'tptstamp';
+	var $widget_hash = '##tpttype## (##tptcomment##) ##tptstamp##';
 
 	function TreatmentPlanType () {
 		global $this_user;
