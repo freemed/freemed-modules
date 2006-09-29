@@ -48,6 +48,7 @@ class TreatmentPlanClinicalNotes extends EMRModule {
 			'tpcnotesdescrip' => SQL__VARCHAR(100),
 			'tpcnotesdoc' => SQL__INT_UNSIGNED(0),
 			'tpcnoteseoc' => SQL__INT_UNSIGNED(0),
+			'tpcnotesproc' => SQL__INT_UNSIGNED(0),
 			'tpcnotes_S' => SQL__TEXT,
 			'tpcnotes_O' => SQL__TEXT,
 			'tpcnotes_A' => SQL__TEXT,
@@ -69,8 +70,6 @@ class TreatmentPlanClinicalNotes extends EMRModule {
 		// Set associations
 		$this->_SetAssociation('EpisodeOfCare');
 		$this->_SetMetaInformation('EpisodeOfCareVar', 'tpcnoteseoc');
-
-		$this->acl = array ( 'emr' );
 
 		// Call parent constructor
 		$this->EMRModule();
@@ -348,8 +347,8 @@ class TreatmentPlanClinicalNotes extends EMRModule {
 		} // end inner switch
 
 		// now actually send the query
-		$result = $sql->query ($query);
-		if ($debug) $display_buffer .= "(query = '$query') ";
+		$result = $GLOBALS['sql']->query ($query);
+		$this_record = $GLOBALS['sql']->last_record( $result );
 		if ($result) {
 			$display_buffer .= " <b> ".__("done").". </b>\n";
 		} else {
@@ -380,7 +379,7 @@ class TreatmentPlanClinicalNotes extends EMRModule {
 					'procdiag4' => $_REQUEST['tpcnotesdiag4'],
 					'procbalorig' => $charges,
 					'procbalcurrent' => $charges,
-					'procbillable' => 1,
+					'procbillable' => 0,
 					'procbilled' => 0,
 					'procamtpaid' => 0
 				)
@@ -406,6 +405,14 @@ class TreatmentPlanClinicalNotes extends EMRModule {
 				)
 			);
 			$pay_result = $GLOBALS['sql']->query ( $pay_query );
+
+			// Update the master record with the procrec table key
+			$upd_query = $GLOBALS['sql']->update_query (
+				$this->table_name,
+				array ( 'tpcnotesproc' => $this_procedure ),
+				array ( 'id' => $this_record )
+			);
+			$upd_result = $GLOBALS['sql']->query ( $upd_query );
 		}
 
 		$display_buffer .= "
