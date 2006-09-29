@@ -190,7 +190,7 @@ class TreatmentPlanClinicalNotesTemplates extends MaintenanceModule {
 			module_function('icdmaintenance', 'widget', array('tpcntdiag4')),
 		
 			__("Procedure Amount") =>
-			html_form::text_widget('tpcntamount', 25),
+			html_form::text_widget('tpcntcharges', 25),
 		))."
 		</div>
 		<p/>
@@ -208,7 +208,7 @@ class TreatmentPlanClinicalNotesTemplates extends MaintenanceModule {
 	// - generates a picklist widget of possible templates
 	function picklist ($varname, $formname) {
 		$query = "SELECT * FROM ".$this->table_name." ".
-			"WHERE tpcntphy='".$GLOBALS['this_user']->user_phy."' OR tpcntphy=0 ".
+			//"WHERE tpcntphy='".$GLOBALS['this_user']->user_phy."' OR tpcntphy=0 ".
 			"ORDER BY tpcntname";
 		$result = $GLOBALS['sql']->query($query);
 		
