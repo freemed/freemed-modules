@@ -59,5 +59,17 @@
 			<source>treatment_plan_options.db.module.php</source>
 			<destination>modules/treatment_plan/</destination>
 		</file>
+		<file>
+			<source>treatment_plan_type.emr.module.php</source>
+			<destination>modules/treatment_plan/</destination>
+		</file>
+		<file>
+			<source>treatment_plan_clinical_notes.emr.module.php</source>
+			<destination>modules/treatment_plan/</destination>
+		</file>
+		<file>
+			<source>treatment_plan_clinical_notes_templates.db.module.php</source>
+			<destination>modules/treatment_plan/</destination>
+		</file>
 	</install>
 </freemedpackage>
