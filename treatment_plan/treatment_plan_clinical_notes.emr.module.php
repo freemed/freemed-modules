@@ -370,7 +370,7 @@ class TreatmentPlanClinicalNotes extends EMRModule {
 					'procauth' => $_REQUEST['auth']+0,
 					'procpatient' => $_REQUEST['patient'],
 					'proceoc' => $_REQUEST['tpcnoteseoc'],
-					'procphy' => $_REQUEST['tpcnotesdoc'],
+					'procphysician' => $_REQUEST['tpcnotesdoc'],
 					'procdt' => fm_date_assemble("tpcnotesdt"),
 					'proccpt' => $_REQUEST['tpcnotescpt'],
 					'procdiag1' => $_REQUEST['tpcnotesdiag1'],
