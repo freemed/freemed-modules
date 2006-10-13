@@ -189,7 +189,7 @@ class TreatmentPlanClinicalNotesTemplates extends MaintenanceModule {
 			__("Diagnosis Code").' 4' =>
 			module_function('icdmaintenance', 'widget', array('tpcntdiag4')),
 		
-			__("Procedure Amount") =>
+			__("Procedure Units") =>
 			html_form::text_widget('tpcntcharges', 25),
 		))."
 		</div>

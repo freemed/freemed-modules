@@ -260,16 +260,18 @@ class TreatmentPlanClinicalNotes extends EMRModule {
 			'auth',
 			'cov1',
 			'cov2',
+			'pos'
 		), html_form::form_table(array(
 			__("Procedure Code") => module_function ( 'cptmaintenance', 'widget', array ( 'tpcnotescpt' )),
 			__("Diagnosis 1") => module_function ( 'icdmaintenance', 'widget', array ( 'tpcnotesdiag1' )),
 			__("Diagnosis 2") => module_function ( 'icdmaintenance', 'widget', array ( 'tpcnotesdiag2' )),
 			__("Diagnosis 3") => module_function ( 'icdmaintenance', 'widget', array ( 'tpcnotesdiag3' )),
 			__("Diagnosis 4") => module_function ( 'icdmaintenance', 'widget', array ( 'tpcnotesdiag4' )),
+			__("Place of Service") => module_function ( 'facilitymodule', 'widge', array ( 'pos' )),
 			__("Authorization") => module_function ( 'authorizationsmodule', 'widget', array ( 'auth', $_REQUEST['patient'] )),
 			__("Primary Coverage") => module_function ( 'patientcoveragesmodule', 'widget', array ( 'cov1', $_REQUEST['patient'] )),
 			__("Secondary Coverage") => module_function ( 'patientcoveragesmodule', 'widget', array ( 'cov2', $_REQUEST['patient'] )),
-			__("Procedural Charges") => html_form::text_widget('tpcnotescharges', 25)
+			__("Procedural Units") => html_form::text_widget('tpcnotescharges', 25)
 		))
 	);
 	} // end checking for addform
@@ -303,7 +305,7 @@ class TreatmentPlanClinicalNotes extends EMRModule {
          $tpcnotesdtmod = $cur_date;
 
            // actual addition
-	global $locked;
+	global $locked, $this_user;
 	$query = $sql->insert_query (
 		$this->table_name,
 		array (
@@ -318,7 +320,7 @@ class TreatmentPlanClinicalNotes extends EMRModule {
 			"tpcnotes_O",
 			"tpcnotes_A",
 			"tpcnotes_P",
-			"locked"         => $locked
+			"locked"         => $this_user->user_number // $locked
 		)
 	);
          break;
@@ -357,7 +359,20 @@ class TreatmentPlanClinicalNotes extends EMRModule {
 
 		// Handle procedure record addition if applicable
 		if (substr($_REQUEST['action'], 0, 3) == 'add') {
-			$charges = abs($_REQUEST['tpcnotescharges']+0);
+			// Calculate charges
+			$charges = module_function(
+				'proceduremodule',
+				'CalculateCharge',
+				array (
+					$_REQUEST['cov1'],
+					abs( ( $_REQUEST['tpcnotescharges'] ? $_REQUEST['tpcnotescharges'] : 1 ) ),
+					$_REQUEST['tpcnotescpt'],
+					$_REQUEST['tpcnotesdoc'],
+					$_REQUEST['patient']
+				)
+			);
+
+			// Query
 			$proc_query = $GLOBALS['sql']->insert_query (
 				'procrec',
 				array (
@@ -368,6 +383,7 @@ class TreatmentPlanClinicalNotes extends EMRModule {
 					'proccov3' => $_REQUEST['cov3']+0,
 					'proccov4' => $_REQUEST['cov4']+0,
 					'procauth' => $_REQUEST['auth']+0,
+					'procpos' => $_REQUEST['pos']+0,
 					'procpatient' => $_REQUEST['patient'],
 					'proceoc' => $_REQUEST['tpcnoteseoc'],
 					'procphysician' => $_REQUEST['tpcnotesdoc'],
@@ -548,7 +564,7 @@ class TreatmentPlanClinicalNotes extends EMRModule {
 
       if (strlen($tpcnotes_S) > 7) $display_buffer .= "
        <TABLE BGCOLOR=#ffffff BORDER=1 WIDTH=\"100%\"><TR BGCOLOR=$darker_bgcolor>
-       <TD ALIGN=\"CENTER\"><B>".__("Subjective")."</B></TD></TR>
+       <TD ALIGN=\"CENTER\"><B>".__("Problem")."</B></TD></TR>
        <TR BGCOLOR=#ffffff><TD>
 		".( eregi("<[A-Z/]*>", $tpcnotes_S) ?
 		prepare($tpcnotes_S) :
@@ -557,7 +573,7 @@ class TreatmentPlanClinicalNotes extends EMRModule {
        ";
       if (strlen($tpcnotes_O) > 7) $display_buffer .= "
        <TABLE BGCOLOR=#ffffff BORDER=1 WIDTH=\"100%\"><TR BGCOLOR=$darker_bgcolor>
-       <TD ALIGN=CENTER><B>".__("Objective")."</B></TD></TR>
+       <TD ALIGN=CENTER><B>".__("Discussion")."</B></TD></TR>
        <TR BGCOLOR=#ffffff><TD>
 		".( eregi("<[A-Z/]*>", $tpcnotes_O) ?
 		prepare($tpcnotes_O) :
