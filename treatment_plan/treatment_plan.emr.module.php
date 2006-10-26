@@ -527,6 +527,48 @@ class TreatmentPlanModule extends EMRModule {
 		return $return;
 	}
 
+	// Method: totalTreatmentPlanCount
+	//
+	//	Get total number of treatment plans for current patient.
+	//
+	// Parameters:
+	//
+	//	$id - Id of treatment plan in question
+	//
+	// Returns:
+	//
+	//	Number of treatment plans in total associated with the
+	//	patient for this current treatment plan.
+	//
+	function totalTreatmentPlanCount ( $id ) {
+		$tp = freemed::get_link_rec( $id, $this->table_name );
+		$patient = $tp['patient'];
+		$res = $GLOBALS['sql']->query( "SELECT COUNT(*) AS my_count FROM ".$this->table_name." WHERE patient='".addslashes($patient)."'" );
+		$r = $GLOBALS['sql']->fetch_array( $res );
+		return $r['my_count'];
+	} // end method totalTreatmentPlanCount
+
+	// Method: treatmentPlanOrder
+	//
+	//	Get order of treatment plan in sequence.
+	//
+	// Parameters:
+	//
+	//	$id - Id of treatment plan in question
+	//
+	// Returns:
+	//
+	//	Order number of this treatment plan in the date organized
+	//	list of treatment plans for this patient.
+	//
+	function treatmentPlanOrder ( $id ) {
+		$tp = freemed::get_link_rec( $id, $this->table_name );
+		$patient = $tp['patient'];
+		$res = $GLOBALS['sql']->query( "SELECT COUNT(*) AS my_count FROM ".$this->table_name." WHERE patient='".addslashes($patient)."' AND dateexpires < '".addslashes($tp['dateexpires'])."'" );
+		$r = $GLOBALS['sql']->fetch_array( $res );
+		return $r['my_count'] + 1;
+	} // end method treatmentPlanOrder
+
 	function view ( ) {
 		global $sql; global $display_buffer; global $patient;
 		$display_buffer .= freemed_display_itemlist (

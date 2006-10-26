@@ -36,14 +36,18 @@ class TreatmentPlanClinicalNotes extends EMRModule {
 	var $patient_field = "tpcnotespat";
 	var $widget_hash   = "##tpcnotesdt## ##tpcnotesdescrip##";
 
-	var $print_template = 'progress_notes';
+	var $print_template = 'treatment_plan_clinical_notes';
 
 	function TreatmentPlanClinicalNotes() {
 		// Table description
 		$this->table_definition = array (
 			'tpcnotesdt' => SQL__DATE,
+			'tpcnotestime' => SQL__TIME,
+			'tpcnotesdur' => SQL__INT_UNSIGNED(0),
 			'tpcnotesdtadd' => SQL__DATE,
 			'tpcnotesdtmod' => SQL__DATE,
+			'tpcnotesuser' => SQL__INT_UNSIGNED(0),
+			'tpcnotesplan' => SQL__INT_UNSIGNED(0),
 			'tpcnotespat' => SQL__INT_UNSIGNED(0),
 			'tpcnotesdescrip' => SQL__VARCHAR(100),
 			'tpcnotesdoc' => SQL__INT_UNSIGNED(0),
@@ -170,7 +174,7 @@ class TreatmentPlanClinicalNotes extends EMRModule {
 
 	$book->add_page (
 		__("Basic Information"),
-		array ("tpcnotesdoc", "tpcnotesdescrip", "tpcnoteseoc", date_vars("tpcnotesdt")),
+		array ("tpcnotesdoc", "tpcnotesdescrip", "tpcnoteseoc", "tpcnotesplan", date_vars("tpcnotesdt"), 'tpcnotestime', 'tpcnotesdur' ),
 		"<input TYPE=\"HIDDEN\" NAME=\"pnt_used\" VALUE=\"\"/>\n".
 		html_form::form_table (
 			array_merge ( 
@@ -178,6 +182,8 @@ class TreatmentPlanClinicalNotes extends EMRModule {
 				array (
 					__("Treatment Plan Type") =>
 						module_function('treatmentplantype', 'widget', array ( 'tpcnoteseoc', $_REQUEST['patient'], false, 'tpteoc' ) ),
+					__("Treatment Plan") =>
+						module_function('treatmentplanmodule', 'widget', array ( 'tpcnotesplan', $_REQUEST['patient'] ) ),
 					__("Provider") =>
 						freemed_display_selectbox (
 						$sql->query ("SELECT * FROM physician ".
@@ -188,7 +194,43 @@ class TreatmentPlanClinicalNotes extends EMRModule {
 					),
 					__("Description") =>
 						html_form::text_widget("tpcnotesdescrip", 25, 100),
-					__("Date") => fm_date_entry("tpcnotesdt") 
+					__("Date") => fm_date_entry("tpcnotesdt"),
+					__("Time") => html_form::select_widget(
+						"tpcnotestime",
+						array(
+							'8:00am' => '08:00:00',
+							'8:30am' => '08:30:00',
+							'9:00am' => '09:00:00',
+							'9:30am' => '09:30:00',
+							'10:00am' => '10:00:00',
+							'10:30am' => '10:30:00',
+							'11:00am' => '11:00:00',
+							'11:30am' => '11:30:00',
+							'12:00pm' => '12:00:00',
+							'12:30pm' => '12:30:00',
+							'1:00pm' => '13:00:00',
+							'1:30pm' => '13:30:00',
+							'2:00pm' => '14:00:00',
+							'2:30pm' => '14:30:00',
+							'3:00pm' => '15:00:00',
+							'3:30pm' => '15:30:00',
+							'4:00pm' => '16:00:00',
+							'4:30pm' => '16:30:00',
+							'5:00pm' => '17:00:00',
+							'5:30pm' => '17:30:00',
+						)
+					),
+					__("Duration") => html_form::select_widget(
+						'tpcnotesdur',
+						array(
+							'15m' => 15,
+							'30m' => 30,
+							'45m' => 45,
+							'1h' => 60,
+							'1h30m' => 90,
+							'2h' => 120,
+						)
+					)
 				)
 			)
 		)
@@ -259,15 +301,13 @@ class TreatmentPlanClinicalNotes extends EMRModule {
 			'tpcnotescharges',
 			'auth',
 			'cov1',
-			'cov2',
-			'pos'
+			'cov2'
 		), html_form::form_table(array(
 			__("Procedure Code") => module_function ( 'cptmaintenance', 'widget', array ( 'tpcnotescpt' )),
 			__("Diagnosis 1") => module_function ( 'icdmaintenance', 'widget', array ( 'tpcnotesdiag1' )),
 			__("Diagnosis 2") => module_function ( 'icdmaintenance', 'widget', array ( 'tpcnotesdiag2' )),
 			__("Diagnosis 3") => module_function ( 'icdmaintenance', 'widget', array ( 'tpcnotesdiag3' )),
 			__("Diagnosis 4") => module_function ( 'icdmaintenance', 'widget', array ( 'tpcnotesdiag4' )),
-			__("Place of Service") => module_function ( 'facilitymodule', 'widge', array ( 'pos' )),
 			__("Authorization") => module_function ( 'authorizationsmodule', 'widget', array ( 'auth', $_REQUEST['patient'] )),
 			__("Primary Coverage") => module_function ( 'patientcoveragesmodule', 'widget', array ( 'cov1', $_REQUEST['patient'] )),
 			__("Secondary Coverage") => module_function ( 'patientcoveragesmodule', 'widget', array ( 'cov2', $_REQUEST['patient'] )),
@@ -310,9 +350,13 @@ class TreatmentPlanClinicalNotes extends EMRModule {
 		$this->table_name,
 		array (
 			"tpcnotespat"      => $_REQUEST['patient'],
+			"tpcnotesplan",
 			"tpcnoteseoc",
 			"tpcnotesdoc",
+			"tpcnotesuser"     => $this_user->user_number,
 			"tpcnotesdt"       => fm_date_assemble("tpcnotesdt"),
+			"tpcnotestime",
+			"tpcnotesdur",
 			"tpcnotesdescrip",
 			"tpcnotesdtadd"    => date("Y-m-d"),
 			"tpcnotesdtmod"    => date("Y-m-d"),
@@ -332,9 +376,12 @@ class TreatmentPlanClinicalNotes extends EMRModule {
 				$this->table_name,
 				array (
 					"tpcnotespat"      => $_REQUEST['patient'],
+					"tpcnotesplan",
 					"tpcnoteseoc",
 					"tpcnotesdoc",
 					"tpcnotesdt"       => fm_date_assemble("tpcnotesdt"),
+					"tpcnotestime",
+					"tpcnotesdur",
 					"tpcnotesdescrip",
 					"tpcnotesdtmod"    => date("Y-m-d"),
 					"tpcnotes_S",
@@ -356,6 +403,8 @@ class TreatmentPlanClinicalNotes extends EMRModule {
 		} else {
 			$display_buffer .= " <b> <font COLOR=\"#ff0000\">".__("ERROR")."</font> </b>\n";
 		}
+
+		$tp = freemed::get_link_rec ($_REQUEST["tpcnotesplan"], 'treatmentplan');
 
 		// Handle procedure record addition if applicable
 		if (substr($_REQUEST['action'], 0, 3) == 'add') {
@@ -383,7 +432,7 @@ class TreatmentPlanClinicalNotes extends EMRModule {
 					'proccov3' => $_REQUEST['cov3']+0,
 					'proccov4' => $_REQUEST['cov4']+0,
 					'procauth' => $_REQUEST['auth']+0,
-					'procpos' => $_REQUEST['pos']+0,
+					'procpos' => $tp['facility']+0,
 					'procpatient' => $_REQUEST['patient'],
 					'proceoc' => $_REQUEST['tpcnoteseoc'],
 					'procphysician' => $_REQUEST['tpcnotesdoc'],
@@ -679,6 +728,57 @@ class TreatmentPlanClinicalNotes extends EMRModule {
 			return false;
 		}
 	} // end method noteForDate
+
+	// Method: PAStateId
+	function PAStateId ( $patient ) {
+		// FML + last 4 of soc
+		$rec = freemed::get_link_rec ( $patient, 'patient' );
+		$id = substr( $rec['ptfname'], 0, 1 ).
+			substr( $rec['ptmname'] ? $rec['ptmname'] : 'X', 0, 1 ).
+			substr( $rec['ptlname'], 0, 1 ).'-'.
+			substr( $rec['ptssn'], -4 );
+		return strtoupper ( $id );
+	} // end method PAStateId
+
+	// Method: totalTreatmentPlanNoteCount
+	//
+	//	Get total number of clinical notes for current treatment plan.
+	//
+	// Parameters:
+	//
+	//	$patient - Id of patient in question
+	//
+	// Returns:
+	//
+	//	Number of treatment plans in total associated with the
+	//	patient for this current treatment plan.
+	//
+	function totalTreatmentPlanNoteCount ( $patient ) {
+		$res = $GLOBALS['sql']->query( "SELECT COUNT(*) AS my_count FROM ".$this->table_name." WHERE tpcnotespat='".addslashes($patient)."'" );
+		$r = $GLOBALS['sql']->fetch_array( $res );
+		return $r['my_count'];
+	} // end method totalTreatmentPlanNoteCount
+
+	// Method: treatmentPlanNoteOrder
+	//
+	//	Get order of treatment plan in sequence.
+	//
+	// Parameters:
+	//
+	//	$id - Id of treatment plan note in question
+	//
+	// Returns:
+	//
+	//	Order number of this treatment plan in the date organized
+	//	list of treatment plans for this patient.
+	//
+	function treatmentPlanNoteOrder ( $id ) {
+		$tp = freemed::get_link_rec( $id, $this->table_name );
+		$patient = $tp['tpcnotespat'];
+		$res = $GLOBALS['sql']->query( "SELECT COUNT(*) AS my_count FROM ".$this->table_name." WHERE tpcnotespat='".addslashes($patient)."' AND id < ".($id+0) );
+		$r = $GLOBALS['sql']->fetch_array( $res );
+		return $r['my_count'] + 1;
+	} // end method treatmentPlanNoteOrder
 
 } // end class TreatmentPlanClinicalNotes
 
