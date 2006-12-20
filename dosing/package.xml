@@ -1,0 +1,59 @@
+<?xml version="1.0"?>
+<!--
+
+  // $Id$
+  //
+  // Authors:
+  //      Jeff Buchbinder <jeff@freemedsoftware.org>
+  //
+  // Copyright (C) 1999-2006 FreeMED Software Foundation
+  //
+  // This program is free software; you can redistribute it and/or modify
+  // it under the terms of the GNU General Public License as published by
+  // the Free Software Foundation; either version 2 of the License, or
+  // (at your option) any later version.
+  //
+  // This program is distributed in the hope that it will be useful,
+  // but WITHOUT ANY WARRANTY; without even the implied warranty of
+  // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  // GNU General Public License for more details.
+  //
+  // You should have received a copy of the GNU General Public License
+  // along with this program; if not, write to the Free Software
+  // Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+-->
+<freemedpackage>
+	<information>
+		<name>Dosing</name>
+		<author>Jeff Buchbinder</author>
+		<version>0.1</version>
+		<description></description>
+		<target>0.8.x</target>
+	</information>
+	<install>
+		<directory>
+			<destination>modules/dosing/</destination>
+		</directory>
+		<file>
+			<source>dosing_frontend</source>
+			<destination>scripts/</destination>
+		</file>
+		<file>
+			<source>dose.emr.module.php</source>
+			<destination>modules/dosing/</destination>
+		</file>
+		<file>
+			<source>dosehold.emr.module.php</source>
+			<destination>modules/dosing/</destination>
+		</file>
+		<file>
+			<source>doseplan.emr.module.php</source>
+			<destination>modules/dosing/</destination>
+		</file>
+		<file>
+			<source>dosing_station.db.module.php</source>
+			<destination>modules/dosing/</destination>
+		</file>
+	</install>
+</freemedpackage>
