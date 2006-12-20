@@ -78,135 +78,170 @@ class Dose extends EMRModule {
 	function mod ( ) { }
 
 	function addform ( ) {
-		if (!isset($_REQUEST['doseplan'])) {
-			$q = $GLOBALS['sql']->fetch_array($GLOBALS['sql']->query("SELECT id FROM doseplan WHERE doseplanpatient='".addslashes($_REQUEST['patient'])."' ORDER BY id DESC LIMIT 1"));
-			$_REQUEST['doseplan'] = $doseplan = $q['id'];
-		}
+		$q = $GLOBALS['sql']->fetch_array($GLOBALS['sql']->query("SELECT id FROM doseplan WHERE doseplanpatient='".addslashes($_REQUEST['patient'])."' ORDER BY id DESC LIMIT 1"));
+		syslog(LOG_INFO, "dose last doseplan = ".$q['id']);
+		$_REQUEST['doseplanid'] = $GLOBALS['doseplanid'] = $q['id'];
+		$_REQUEST['doseassigneddate'] = $GLOBALS['doseassigneddate'] = date ('Y-m-d');
 
-		$w = CreateObject( 'PHP.wizard', array('module', 'patient', 'return') );
+		$GLOBALS['display_buffer'] .= html_form::form_table(array (
+			__("Hold Status (by patient)") => ( module_function( 'dosehold', 'GetCurrentHoldStatusByPatient', array ( $_REQUEST['patient'] ) ) ? "ACTIVE HOLD" : "No holds" ),
+			__("Dosing Plan") => module_function ('doseplan', 'widget', array ( 'doseplanid', $_REQUEST['patient'] ) ),
+			__("Dosing Station") => module_function ('dosingstation', 'widget', array ( 'dosestation' ) ),
+			__("Assigned Date") => fm_date_entry ( 'doseassigneddate' ),
+		));
 
-		$w->add_page(
-			__("Select Dose Information"),
-			html_form::form_table(array (
-				__("Hold Status (by patient)") => ( module_function( 'dosehold', 'GetCurrentHoldStatusByPatient', array ( $_REQUEST['patient'] ) ) ? "ACTIVE HOLD" : "No holds" ),
-				__("Dosing Plan") => module_function ('doseplan', 'widget', array ( 'doseplan', $_REQUEST['patient'] ) ),
-				__("Dosing Station") => module_function ('dosingstation', 'widget', array ( 'dosestation' ) ),
-				__("Assigned Date") => fm_date_entry ( 'doseassigneddate' ),
-			))
-		);
+		include_once(freemed::template_file('ajax.php'));
 
-		if ( $_REQUEST['doseplan'] and $_REQUEST['doseassigneddate'] ) {
-			if (!isset($_REQUEST['doseunits'])) {
-				$_REQUEST['doseunits'] = $doseunits = module_function('doseplan', 'doseForDate', array( $_REQUEST['doseplan'], $_REQUEST['doseassigneddate'] ) );
+		$GLOBALS['display_buffer'] .= "
+			<script language=\"javascript\">
+			function updateDoseAmount ( ) {
+				var plan = document.getElementById('doseplanid').value;
+				var dt = document.getElementById('doseassigneddate_cal').value;
+				x_module_html('doseplan', 'ajax_doseForDate', plan + ',' + dt, updateDoseAmountPopulate);
+				x_module_html('".get_class($this)."', 'ajax_alreadyDosed', '".addslashes($_REQUEST['patient'])."' + ',' + dt, alreadyDosedProcess);
 			}
-			if (!isset($_REQUEST['dosemedicationtype'])) {
-				// FIXME: should pull from doseplan
-				$_REQUEST['dosemedicationtype'] = $dosemedicationtype = 'methadone';
+			function alreadyDosedProcess ( value ) {
+				document.getElementById('dosedalready').innerHTML = value;
 			}
-			$w->add_page(
-				__("Dose Information 2"),
-				html_form::form_table(array (
-					__("Units") => html_form::text_widget( 'doseunits' ),
-					__("Medication Type") => html_form::text_widget( 'dosemedicationtype' )
-				))
-			);
-
-			// Determine if we've already dispensed today
-			$already = $GLOBALS['sql']->fetch_array($GLOBALS['sql']->query("SELECT COUNT(*) AS already FROM dose WHERE dosepatient='".addslashes($_REQUEST['patient'])."' AND doseassigneddate='".addslashes($_REQUEST['doseassigneddate'])."'"));
-
-			include_once(freemed::template_file('ajax.php'));
-
-			$w->add_page(
-				__("Dispense"),
-				html_form::form_table(array (
-					"Dosing Status" => ( $already['already'] > 0 ? "<span style=\"color: #ff0000;\">ALREADY DOSED</span>" : "Ready for Dosing" ),
-					" " => 
-					ajax_expand_module_html(
-						'dosePlanDiv',
-						'doseplan',
-						'ajax_display_dose_plan',
-						$_REQUEST['doseplanid']
-					)." Show Dose Plan <br/>
-					<div id=\"dosePlanDiv\"></div>
-					<label for=\"dosenow\">Check box to continue dosing</label><input type=\"checkbox\" name=\"dosenow\" id=\"dosenow\" value=\"1\" />
-					"
-				))
-			);
-
-			if ($_REQUEST['dosenow'] == 1) {
-				$pwd = dirname(dirname(__FILE__));
-				$cmd = $pwd.'/scripts/dosing_frontend '.escapeshellarg($_REQUEST['patient']).' '.escapeshellarg($_REQUEST['doseunits']);
-				$output = `$cmd`;
-				list ( $code, $returned ) = explode ( ':', $output );
-				if ($code == 0) {
-					// successful, insert
-					$q = $GLOBALS['sql']->insert_query(
-						$this->table_name,
-						$this->variables
-					);
-					$res = $GLOBALS['sql']->query ( $q );
-					$_REQUEST['id'] = $id = $GLOBALS['sql']->last_record( $res, $this->table_name );
-				} elseif ($code < 100) {
-					// dose codes under 100 indicate no dose was given
-				} else {
-					// over 100 means that dose was given, with problems.
-					// have to still insert
-					$q = $GLOBALS['sql']->insert_query(
-						$this->table_name,
-						$this->variables
-					);
-					$res = $GLOBALS['sql']->query ( $q );
-					$_REQUEST['id'] = $id = $GLOBALS['sql']->last_record( $res, $this->table_name );
-				}
-
-				// set variable for this
-				$_REQUEST['dosed'] = $dosed = 1;
+			function updateDoseAmountPopulate ( value ) {
+				document.getElementById('doseunits').value = value;
+				document.getElementById('stageTwo').style.display = 'block';
 			}
-			$w->add_page (
-				__("Confirm"),
-				array ( 'dosed', 'id', 'confirm' ),
-				"<input type=\"hidden\" name=\"id\" value=\"".$_REQUEST['id']."\" />".
-				"<input type=\"hidden\" name=\"dosed\" value=\"".$_REQUEST['dosed']."\" />".
-				html_form::form_table(array(
-						
-				))
-			);
-		} else {
-			$w->add_page(
-				__("Dose ERROR"),
-				"Please go back and select a dose plan and date to proceed."
-			);
-		}
-
-		if ( !$w->is_done() and !$w->is_cancelled() ) {
-			$GLOBALS['display_buffer'] .= "<center>".$w->display()."</center>\n";
-		} elseif ( $w->is_cancelled() ) {
-			$GLOBALS['display_buffer'] .= "
-			<p/>
-			<div ALIGN=\"CENTER\"><b>".__("Cancelled")."</b></div>
-			<p/>
-			<div ALIGN=\"CENTER\">
-			<a HREF=\"manage.php?id=$patient\"
-			>".__("Manage Patient")."</a>
+			</script>
+			<div align=\"center\">
+			<input type=\"button\" name=\"updateDoseAmount\" value=\"Calculate Dose\" onClick=\"updateDoseAmount(); return true;\" />
 			</div>
+		";
+
+		$GLOBALS['display_buffer'] .= "
+			<div id=\"stageTwo\" style=\"display:none;\">
+			<center><div id=\"dosedalready\"></div></center>
+			<div align=\"center\">".__("Units")."  ".html_form::text_widget( 'doseunits', array ( 'id' => 'doseunits' ) )."</div>
 			";
 
-			global $refresh;
-			if ($GLOBALS['return'] == 'manage') {
-				$refresh = 'manage.php?id='.urlencode($_REQUEST['patient']);
+		$GLOBALS['display_buffer'] .=
+			"<center><div style=\"border: 1px solid #000000; width: 300px;\">\n".
+			"<div align=\"center\">\n".
+			ajax_expand_module_html(
+				'dosePlanDiv',
+				'doseplan',
+				'ajax_display_dose_plan',
+				"document.getElementById('doseplanid').value"
+			)." Show Dose Plan </div>
+			<div align=\"center\" id=\"dosePlanDiv\"></div>
+			</div></center>
+			<div align=\"center\">
+			<input type=\"button\" value=\"Dispense\" id=\"dispenseButton\" onClick=\"dispenseDose(); return true;\" />
+			</div>
+			<input type=\"hidden\" id=\"id\" name=\"id\" value=\"0\" />
+			<center><div id=\"message\" style=\"background-color: #cccccc; font-weight: bold;\"></div></center>
+			<script language=\"javascript\">
+			function dispenseDose ( ) {
+				// Disable button so it can't be pressed again
+				document.getElementById('dispenseButton').disabled = true;
+
+				// Get values to submit
+				var plan = document.getElementById('doseplanid').value;
+				var dt = document.getElementById('doseassigneddate_cal').value;
+				var units = document.getElementById('doseunits').value;
+				var station = document.getElementById('dosestation').value;
+				x_module_html('".get_class($this)."', 'dispenseDose', '".addslashes($_REQUEST['patient'])."' + ',' + dt + ',' + plan + ',' + units + ',' + station, dispenseDoseAction);
 			}
-		} else {
-		}
+			function dispenseDoseAction ( value ) {
+				if ( value < 0 ) {
+					// Error in dosing, negative value, make sure it's set properly
+					document.getElementById('id').value = 0 - value;
+					document.getElementById('message').innerHTML = 'A dosing error has occurred, but the machine has reported that it has dispensed something.';
+					document.getElementById('message').style.backgroundColor = '#ff0000';
+					document.getElementById('stageThree').style.display = 'block';
+					return true;
+				}
+				if ( value == 0 ) {
+					// Nothing happened, so we just don't do anything from here.
+					document.getElementById('id').value = 0;
+					document.getElementById('message').innerHTML = 'A dosing error has occurred, but nothing was dispensed.';
+					return true;
+				} else {
+					// Dose okay, show green, move on.
+					document.getElementById('id').value = value;
+					document.getElementById('message').innerHTML = 'Dose was dispensed successfully.';
+					document.getElementById('message').style.backgroundColor = '#00ff00';
+					document.getElementById('stageThree').style.display = 'block';
+					return true;
+				}
+			}
+			</script>
+			</div> <!-- stageTwo -->
+
+			<center>
+			<div id=\"stageThree\" style=\"display:none;\">
+			Stage three, stub
+			</div> <!-- stageThree -->
+			</center>
+		";
 	} // end method addform
 
-/*
-	function form_table ( ) {
-		return array (
-			__("Medication Dispensed") => html_form::text_widget( 'dosemedicationdispensed' ),
-			__("Prepared / Poured") => html_form::text_widget( 'dosepreparedunits' ).' / '.html_form::text_widget( 'dosepouredunits' ),
+	//function dispenseDose ( $patient, $doseplan, $units, $station ) {
+	function dispenseDose ( $blob ) {
+		list ( $patient, $date, $doseplan, $units, $station ) = explode ( ',', $blob );
+		syslog(LOG_INFO, "dispenseDose| blob = $blob");
+		syslog(LOG_INFO, "dispenseDose| called with $patient, $date, $doseplan, $units, $station");
+		$pwd = PHYSICAL_LOCATION;
+		$cmd = $pwd.'/scripts/dosing_frontend '.escapeshellarg($patient).' '.escapeshellarg($units).' '.escapeshellarg($station);
+		syslog(LOG_INFO, "dispenseDose| cmd = $cmd");
+		$output = `$cmd`;
+		list ( $code, $returned ) = explode ( ':', $output );
+		syslog(LOG_INFO, "dispenseDose| returned $code, text = '$returned'");
+		$dp = freemed::get_link_rec($doseplan, 'doseplan');
+		$GLOBALS['this_user'] = CreateObject('_FreeMED.User');
+		$vars = array (
+			'dosepatient' => $patient,
+			'doseassigneddate' => $date,
+			'doseplanid' => $doseplan,
+			'doseunits' => $units,
+			'dosegivenstamp' => SQL__NOW,
+			'dosegivenuser' => $GLOBALS['this_user']->user_number,
+			'dosestation' => $station,
+			'dosemedicationtype' => $dp['doseplantype'],
+			//'dosemedicationdispensed',
+			//'dosepouredunits',
+			//'dosepreparedunits',
 		);
-	} // end method form_table
-*/
+		if ($code == 0) {
+			syslog(LOG_INFO, "dispenseDose| successful, inserting");
+			// successful, insert
+			$q = $GLOBALS['sql']->insert_query(
+				$this->table_name,
+				$vars
+			);
+			syslog(LOG_INFO, "dispenseDose| q = $q");
+			$res = $GLOBALS['sql']->query ( $q );
+			$id = $GLOBALS['sql']->last_record( $res, $this->table_name );
+			return $id;
+		} elseif ($code < 100) {
+			// dose codes under 100 indicate no dose was given
+			return 0;
+		} else {
+			// over 100 means that dose was given, with problems.
+			// have to still insert
+			$q = $GLOBALS['sql']->insert_query(
+				$this->table_name,
+				$vars
+			);
+			$res = $GLOBALS['sql']->query ( $q );
+			$id = $GLOBALS['sql']->last_record( $res, $this->table_name );
+
+			// Negative is the actual id during error
+			return 0 - abs($id);
+		}
+	} // end method dispenseDose
+
+	function ajax_alreadyDosed ( $blob ) {
+		list ( $patient, $doseassigneddate ) = explode ( ',', $blob );
+		$already = $GLOBALS['sql']->fetch_array($GLOBALS['sql']->query("SELECT COUNT(*) AS already FROM doserecord WHERE dosepatient='".addslashes($patient)."' AND doseassigneddate='".addslashes($doseassigneddate)."'"));
+		syslog(LOG_INFO, "dosed already = ".$already['already']);
+		return ( $already['already'] > 0 ? "<span style=\"color: #ff0000;\">ALREADY DOSED</span>" : "<b>Ready for Dosing</b>" );
+	} // end ajax_alreadyDosed
 
 } // end class Dose
 
