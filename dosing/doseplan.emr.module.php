@@ -198,7 +198,7 @@ class DosePlan extends EMRModule {
 				))."
 			<div id=\"incrementationView\" style=\"display: ".( ($_REQUEST['doseplanincrementationtype']=='none' or $_REQUEST['doseplanincrementationtype']=='') ? 'none' : 'block' ).";\">
 			<div id=\"dayCountView\" style=\"display: ".( ($_REQUEST['doseplanincrementationtype']=='titration-decrease' or $_REQUEST['doseplanincrementationtype']=='titration-increase') ? 'block' : 'none' ).";\">".__("Number of Days")." : ".html_form::text_widget("doseplandays")."</div>
-			<div id=\"decView\" style=\"display: ".( ($_REQUEST['doseplanincrementationtype']=='behavioral' or $_REQUEST['doseplanincrementationtype']=='voluntary' or $_REQUEST['doseplanincrementationtype']=='adminstrative') ? 'block' : 'none' ).";\">".__("Daily Decrease Dose")." : ".html_form::text_widget("doseplandec")."</div>
+			<div id=\"decView\" style=\"display: ".( ($_REQUEST['doseplanincrementationtype']=='behavioral' or $_REQUEST['doseplanincrementationtype']=='voluntary' or $_REQUEST['doseplanincrementationtype']=='administrative') ? 'block' : 'none' ).";\">".__("Daily Decrease Dose")." : ".html_form::text_widget("doseplandec")."</div>
 			</div>	
 
 			<script language=\"javascript\">
@@ -210,7 +210,7 @@ class DosePlan extends EMRModule {
 					document.getElementById('incrementationView').style.display = 'none';
 				}
 
-				if ((iV == 'behavioral') || (iV == 'voluntary')) {
+				if ((iV == 'behavioral') || (iV == 'voluntary') || (iV == 'administrative')) {
 					document.getElementById('decView').style.display = 'block';
 
 				} else {
@@ -255,7 +255,7 @@ class DosePlan extends EMRModule {
 			case 'administrative':
 			if ( $_REQUEST['doseplandose'] > 0 ) {
 				$amt = (int) ( $_REQUEST['doseplandose'] / $_REQUEST['doseplandec'] );
-				for ($i = 0; $i <= $amt; $i++ ) {
+				for ($i = 1; $i <= $amt; $i++ ) {
 					$dp[] = (int) $_REQUEST['doseplandec'];
 				}
 			}
@@ -305,7 +305,7 @@ class DosePlan extends EMRModule {
 			$count = 0;
 			foreach ($dp AS $dose) {
 				$dpout .= "<tr><td>".$this->dow($date)." ".$date."</td><td><input type=\"text\" name=\"doseplan[]\" value=\"".( $_REQUEST['doseplan'][$count] ? $_REQUEST['doseplan'][$count] : $dose )."\" /></td></tr>\n";
-				$date = $this->increment_date ( $date );
+				$date = $this->increment_date ( $date, 1 );
 				$count++;
 			}
 			$w->add_page(
@@ -415,11 +415,11 @@ class DosePlan extends EMRModule {
 	} // end method figureInitialDosePlan
 
 	function increment_date ( $old, $days = 1 ) {
-		return date( 'Y-m-d', $this->dateToStamp($old) + (84600 * $days) );
+		return date( 'Y-m-d', $this->dateToStamp($old) + (60 * 60 * 24 * $days) );
 	} // end method increment_date
 
 	function dow ( $date ) {
-		return date( 'D', $this->dateToStamp($old) );
+		return date( 'D', $this->dateToStamp($date) );
 	} // end method dow
 
 	function dateToStamp ( $date ) {
@@ -463,6 +463,11 @@ class DosePlan extends EMRModule {
 		return $buffer;
 	} // end method ajax_display_dose_plan
 
+	function ajax_doseForDate ( $blob ) {
+		list ( $doseplanid, $date ) = explode ( ',', $blob );
+		return $this->doseForDate( $doseplanid, $date );
+	}
+
 	// Method: doseForDate
 	//
 	//	Determine dose for a particular date based on a doseplan.
@@ -486,7 +491,7 @@ class DosePlan extends EMRModule {
 		}
 
 		// Magic
-		$days = (int) ( $this->dateToStamp( $date ) - $this->dateToStamp( $plan['doseplanstartdate'] ) / 84600 );
+		$days = ceil( ( $this->dateToStamp( $date ) - $this->dateToStamp( $plan['doseplanstartdate'] ) ) / (60 * 60 * 24) );
 		return ( $days < 1 or $days >= count( $doses ) ) ? 0 : $doses[$days];
 	} // end method doseForDate
 
