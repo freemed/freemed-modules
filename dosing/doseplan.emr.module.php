@@ -42,6 +42,7 @@ class DosePlan extends EMRModule {
 			'doseplandose' => SQL__INT_UNSIGNED(0),
 			'doseplanunits' => SQL__CHAR(10),
 			'doseplantype' => SQL__VARCHAR(50),
+			'doseplanexceptiontype' => SQL__VARCHAR(50),
 			'doseplantakehomesched' => SQL__CHAR(7),
 			'doseplanuser' => SQL__INT_UNSIGNED(0),
 			'doseplansplit' => SQL__INT_UNSIGNED(0),
@@ -54,6 +55,8 @@ class DosePlan extends EMRModule {
 			'doseplanlength' => SQL__INT_UNSIGNED(0),
 			'doseplanmedicalorders' => SQL__TEXT,
 			'doseplancomment' => SQL__TEXT,
+			'doseplanpickupdate' => SQL__DATE,
+			'doseplanreturndate' => SQL__DATE,
 			'id' => SQL__SERIAL
 		);
 
@@ -67,6 +70,7 @@ class DosePlan extends EMRModule {
 			'doseplandose',
 			'doseplanunits',
 			'doseplantype',
+			'doseplanexceptiontype',
 			'doseplantakehomesched',
 			'doseplansplit',
 			'doseplansplit1',
@@ -76,7 +80,9 @@ class DosePlan extends EMRModule {
 			'doseplanincrementationschedule' => join(',', $_REQUEST['doseplan']),
 			'doseplanlength' => count( $_REQUEST['doseplan'] ),
 			'doseplanmedicalorders',
-			'doseplancomment'
+			'doseplancomment',
+			'doseplanpickupdate' => fm_date_assemble('doseplanpickupdate'),
+			'doseplanreturndate' => fm_date_assemble('doseplanreturndate')
 		);
 
 		$this->summary_vars = array (
@@ -118,6 +124,7 @@ class DosePlan extends EMRModule {
 				'doseplandose',
 				'doseplanunits',
 				'doseplantype',
+				'doseplanexceptiontype',
 				'doseplansplit',
 				'doseplanincrementationtype',
 				'doseplandec',
@@ -133,7 +140,31 @@ class DosePlan extends EMRModule {
 					'Regular Methadone Dosing' => 'regular-methadone',
 					'Incremental Methadone Dosing' => 'incremental-methadone',
 					'Exception Dosing' => 'exception'
-				)),
+				),array(
+					'on_change' => 'adjustExceptionView()'
+				))."
+			<div id=\"exceptionView\" style=\"display: ".( $_REQUEST['doseplantype']=='exception' ? 'block' : 'none' ).";\">
+			<div>Exception Type ".html_form::select_widget('doseplanexceptiontype', array(
+				'Courtesy Leave',
+				'Hardship Leave',
+				'Sick Leave',
+				'Vacation',
+				'Jail',
+				'Other'
+			))."</div>
+			</div>	
+
+			<script language=\"javascript\">
+			function adjustExceptionView() {
+				var eV = document.getElementById('exceptionView');
+				if ( document.getElementById('doseplantype').value == 'exception' ) {
+					eV.style.display = 'block';
+				} else {
+					eV.style.display = 'none';
+				}
+			}
+			</script>
+			",
 			__("Dosage") =>
 				"<input type=\"text\" id=\"doseplandose\" name=\"doseplandose\" value=\"".htmlentities($_REQUEST['doseplandose'])."\" /> ".
 				html_form::select_widget("doseplanunits",
@@ -233,14 +264,14 @@ class DosePlan extends EMRModule {
 			case 'financial':
 			if ($_REQUEST['doseplandose'] >= 50 and $_REQUEST['doseplandose'] <= 100) {
 				// Between 50-100mg
-				$dp = $this->figureInitialDosePlan( $_REQUEST['doseplandose'], -3 );
+				$dp = $this->figureInitialDosePlan( abs($_REQUEST['doseplandose']), -3 );
 			} elseif ($_REQUEST['doseplandose'] < 50) {
 				// Under 50mg
-				$dp = $this->figureInitialDosePlan( $_REQUEST['doseplandose'], -2 );
+				$dp = $this->figureInitialDosePlan( abs($_REQUEST['doseplandose']), -2 );
 			} elseif ($_REQUEST['doseplandose'] > 100) {
 				// Over 100mg
 				$dp = $this->figureInitialDosePlan( abs($_REQUEST['doseplandose']), -5, 100 );
-				$dp2 = $this->figureInitialDosePlan( $dp[count($dp)-1], -3 );
+				$dp2 = $this->figureInitialDosePlan( abs($dp[count($dp)-1]), -3 );
 				unset($dp2[0]); // duplicate
 				$dp = array_merge ( $dp, $dp2 );
 			}
@@ -262,7 +293,6 @@ class DosePlan extends EMRModule {
 			break;
 		} // end inctype
 
-		//if (!count($_REQUEST['doseplan']) or !$_REQUEST['doseplan'][0])  {
 		switch ($_REQUEST['doseplanincrementationtype']) {
 			case 'administrative':
 			case 'behavioral':
@@ -292,17 +322,25 @@ class DosePlan extends EMRModule {
 			case 'none': default:
 			break;
 		}
-		//}
 
 		$w->add_page (
 			__("Comments"),
 			array (
+				'doseplanpickupdate',
+				'doseplanreturndate',
+				'doseplantakehomecountgiven',
 				'doseplanmedicalorders',
 				'doseplancomment'
 			),
 			html_form::form_table(array(
 				__("Medical Orders") => html_form::text_area('doseplanmedicalorders'),
-				__("Comment") => html_form::text_area('doseplancomment')
+				__("Comment") => html_form::text_area('doseplancomment'),
+				" " => 
+				( $_REQUEST['doseplantype'] == 'exception' ? "
+				<div>Medication Pickup Date ".fm_date_entry("doseplanpickupdate")."</div>
+				<div>Return Date ".fm_date_entry("doseplanpickupdate")."</div>
+				<div>Number of Doses Given ".html_form::text_widget("doseplantakehomecountgiven")."</div>
+				" : "" )
 			))
 		);
 
@@ -376,14 +414,12 @@ class DosePlan extends EMRModule {
 		return $dose;
 	} // end method figureInitialDosePlan
 
-	function increment_date ( $old ) {
-		list ( $y, $m, $d ) = explode ('-', $old);
-		return date('Y-m-d', mktime(0,0,0,$m,$d,$y) + (60 * 60 * 24));
+	function increment_date ( $old, $days = 1 ) {
+		return date( 'Y-m-d', $this->dateToStamp($old) + (84600 * $days) );
 	} // end method increment_date
 
 	function dow ( $date ) {
-		list ( $y, $m, $d ) = explode ('-', $date);
-		return date('D', mktime(0,0,0,$m,$d,$y));
+		return date( 'D', $this->dateToStamp($old) );
 	} // end method dow
 
 	function dateToStamp ( $date ) {
