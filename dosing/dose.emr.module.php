@@ -114,11 +114,22 @@ class Dose extends EMRModule {
 			// Determine if we've already dispensed today
 			$already = $GLOBALS['sql']->fetch_array($GLOBALS['sql']->query("SELECT COUNT(*) AS already FROM dose WHERE dosepatient='".addslashes($_REQUEST['patient'])."' AND doseassigneddate='".addslashes($_REQUEST['doseassigneddate'])."'"));
 
+			include_once(freemed::template_file('ajax.php'));
+
 			$w->add_page(
 				__("Dispense"),
 				html_form::form_table(array (
 					"Dosing Status" => ( $already['already'] > 0 ? "<span style=\"color: #ff0000;\">ALREADY DOSED</span>" : "Ready for Dosing" ),
-					" " => "Continue to perform dosing. <input type=\"hidden\" name=\"dosenow\" value=\"1\" />"
+					" " => 
+					ajax_expand_module_html(
+						'dosePlanDiv',
+						'doseplan',
+						'ajax_display_dose_plan',
+						$_REQUEST['doseplanid']
+					)." Show Dose Plan <br/>
+					<div id=\"dosePlanDiv\"></div>
+					<label for=\"dosenow\">Check box to continue dosing</label><input type=\"checkbox\" name=\"dosenow\" id=\"dosenow\" value=\"1\" />
+					"
 				))
 			);
 
@@ -157,7 +168,7 @@ class Dose extends EMRModule {
 				"<input type=\"hidden\" name=\"id\" value=\"".$_REQUEST['id']."\" />".
 				"<input type=\"hidden\" name=\"dosed\" value=\"".$_REQUEST['dosed']."\" />".
 				html_form::form_table(array(
-	
+						
 				))
 			);
 		} else {
@@ -165,6 +176,26 @@ class Dose extends EMRModule {
 				__("Dose ERROR"),
 				"Please go back and select a dose plan and date to proceed."
 			);
+		}
+
+		if ( !$w->is_done() and !$w->is_cancelled() ) {
+			$GLOBALS['display_buffer'] .= "<center>".$w->display()."</center>\n";
+		} elseif ( $w->is_cancelled() ) {
+			$GLOBALS['display_buffer'] .= "
+			<p/>
+			<div ALIGN=\"CENTER\"><b>".__("Cancelled")."</b></div>
+			<p/>
+			<div ALIGN=\"CENTER\">
+			<a HREF=\"manage.php?id=$patient\"
+			>".__("Manage Patient")."</a>
+			</div>
+			";
+
+			global $refresh;
+			if ($GLOBALS['return'] == 'manage') {
+				$refresh = 'manage.php?id='.urlencode($_REQUEST['patient']);
+			}
+		} else {
 		}
 	} // end method addform
 

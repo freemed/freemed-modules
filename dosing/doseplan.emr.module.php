@@ -427,6 +427,42 @@ class DosePlan extends EMRModule {
 		return mktime ( 0, 0, 0, $m, $d, $y );
 	} // end method dateToStamp
 
+	// Method: ajax_display_dose_plan
+	//
+	//	Display dose plan.
+	//
+	// Parameters:
+	//
+	//	$doseplanid - Dose plan id
+	//
+	// Returns:
+	//
+	//	XHTML.
+	//
+	function ajax_display_dose_plan ( $doseplanid ) {
+		$dp = freemed::get_link_rec( $doseplanid, $this->table_name );
+		$buffer .= "<table border=\"0\">\n";
+		$buffer .= "<tr>\n\t<th>Date</th>\n\t<th>Dose</th>\n\t<th>Status</th>\n</tr>\n";
+		$dt = $dp['doseplanstartdate'];
+		for ($i=1; $i<=$dp['doseplanlength']; $i++) {
+			// Use API to get the dose
+			$dose = $this->doseForDate( $doseplanid, $dt );
+			$status = $this->doseStatus( $doseplanid, $dt );
+
+			// Add this
+			$buffer .= "<tr>\n".
+				"\t<td>${dt}</td>\n".
+				"\t<td>${dose} ${dp['doseplanunits']}</td>\n".
+				"\t<td>".( $status ? "<span style=\"color: #ff0000;\">DISPENSED</span>" : "" )."</td>\n".
+				"</tr>\n";
+
+			// Increment date at the end
+			$dt = $this->increment_date( $dt, 1 );
+		}
+		$buffer .= "</table>\n";
+		return $buffer;
+	} // end method ajax_display_dose_plan
+
 	// Method: doseForDate
 	//
 	//	Determine dose for a particular date based on a doseplan.
@@ -453,6 +489,26 @@ class DosePlan extends EMRModule {
 		$days = (int) ( $this->dateToStamp( $date ) - $this->dateToStamp( $plan['doseplanstartdate'] ) / 84600 );
 		return ( $days < 1 or $days >= count( $doses ) ) ? 0 : $doses[$days];
 	} // end method doseForDate
+
+	// Method: doseStatus
+	//
+	//	Determine dose status based on a doseplan and date.
+	//
+	// Parameters:
+	//
+	//	$doseplanid - Id for the doseplan in question
+	//
+	//	$date - Date to query
+	//
+	// Returns:
+	//
+	//	Dose status for the specified date, boolean.
+	//
+	function doseStatus ( $doseplanid, $date ) {
+		$q = "SELECT COUNT(*) AS c FROM dose d LEFT OUTER JOIN doseplan dp ON d.doseplanid=dp.id WHERE d.doseplandt='".addslashes($date)."' AND dp.id='".addslashes($doseplanid)."'";
+		$a = $GLOBALS['sql']->fetch_array( $GLOBALS['sql']->query ( $q ) );
+		return ( $a['c'] > 0 );
+	} // end method doseStatus
 
 } // end class DosePlan
 
