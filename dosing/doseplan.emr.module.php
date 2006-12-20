@@ -440,6 +440,7 @@ class DosePlan extends EMRModule {
 	//	XHTML.
 	//
 	function ajax_display_dose_plan ( $doseplanid ) {
+		if (!$doseplanid) { return 'NO DOSE PLAN SPECIFIED'; }
 		$dp = freemed::get_link_rec( $doseplanid, $this->table_name );
 		$buffer .= "<table border=\"0\">\n";
 		$buffer .= "<tr>\n\t<th>Date</th>\n\t<th>Dose</th>\n\t<th>Status</th>\n</tr>\n";
@@ -510,7 +511,7 @@ class DosePlan extends EMRModule {
 	//	Dose status for the specified date, boolean.
 	//
 	function doseStatus ( $doseplanid, $date ) {
-		$q = "SELECT COUNT(*) AS c FROM dose d LEFT OUTER JOIN doseplan dp ON d.doseplanid=dp.id WHERE d.doseplandt='".addslashes($date)."' AND dp.id='".addslashes($doseplanid)."'";
+		$q = "SELECT COUNT(*) AS c FROM doserecord d LEFT OUTER JOIN doseplan dp ON d.doseplanid=dp.id WHERE d.doseassigneddate='".addslashes($date)."' AND dp.id='".addslashes($doseplanid)."'";
 		$a = $GLOBALS['sql']->fetch_array( $GLOBALS['sql']->query ( $q ) );
 		return ( $a['c'] > 0 );
 	} // end method doseStatus
