@@ -25,4 +25,6 @@ if [ $# -ne 3 ]; then
 	returnvalue 1 "Invalid parameters"
 fi
 
+# Test, return good dose
+returnvalue 0 "${DOSEAMT} dispensed on ${IP} for ${PATIENT}"
 
