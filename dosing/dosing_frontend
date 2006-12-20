@@ -1,0 +1,28 @@
+#!/bin/bash
+#
+# File: dosing_frontend
+#
+#	Simulator frontend to actual dosing functionality. This exposes
+#	the API which would be used by a drug dosing interface, but does
+#	not do any actual dosing, just returns codes as an actual dosing
+#	interface would.
+#
+# Returns:
+#
+#	Value of 0 indicates success, < 100 means no dose was dispensed with
+#	error, > 100 means something was dispensed also with error.
+#	* 0 - Dosing successful, OK
+#	* 1 - Invalid parameters
+#
+
+PATIENT=$1
+DOSEAMT=$2
+IP=$3
+
+function returnvalue ( ) { echo "$1:$2" ; exit $1 ; }
+
+if [ $# -ne 3 ]; then
+	returnvalue 1 "Invalid parameters"
+fi
+
+

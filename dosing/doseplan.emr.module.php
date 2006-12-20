@@ -32,7 +32,7 @@ class DosePlan extends EMRModule {
 	var $table_name = 'doseplan';
 	var $patient_field = 'doseplanpatient';
 	var $widget_hash = '##doseplandose## ##doseplanunits## (##doseplancomment##)';
-	var $order_by = 'id DESC';
+	var $order_by = 'id';
 
 	function DosePlan ( ) {
 		$this->table_definition = array (
@@ -56,6 +56,8 @@ class DosePlan extends EMRModule {
 			'doseplancomment' => SQL__TEXT,
 			'id' => SQL__SERIAL
 		);
+
+		if (!is_object($GLOBALS['this_user'])) { $GLOBALS['this_user'] = CreateObject('_FreeMED.User'); }
 
 		$this->variables = array (
 			'doseplaneffectivedate' => fm_date_assemble('doseplaneffectivedate'),
@@ -84,7 +86,7 @@ class DosePlan extends EMRModule {
 			__("Comment") =>	"doseplancomment"
 		);
 		$this->summary_options |= SUMMARY_VIEW | SUMMARY_PRINT;
-		$this->summary_order_by = 'id DESC';
+		$this->summary_order_by = 'id';
 
 		// Set associations
 		$this->EMRModule();
@@ -95,12 +97,12 @@ class DosePlan extends EMRModule {
 
 	function addform ( ) {
 		if (!$_REQUEST['been_here']) {
-			$_REQUEST['doseplaneffectivedate'] = date('Y-m-d');
-			$_REQUEST['doseplanstartdate'] = date('Y-m-d');
+			$_REQUEST['doseplaneffectivedate'] = $GLOBALS['doseplaneffectivedate'] = date('Y-m-d');
+			$_REQUEST['doseplanstartdate'] = $GLOBALS['doseplanstartdate'] = date('Y-m-d');
 			$_REQUEST['been_here'] = 1;
 		}
 
-		$w = CreateObject( 'PHP.wizard', array ( 'been_here', 'action', 'module', 'return' ) );
+		$w = CreateObject( 'PHP.wizard', array ( 'been_here', 'action', 'module', 'return', 'patient' ) );
 		$w->set_cancel_name(__("Cancel"));
 		$w->set_finish_name(__("Finish"));
 		$w->set_previous_name(__("Previous"));
@@ -111,13 +113,13 @@ class DosePlan extends EMRModule {
 
 		$w->add_page ( 'Step One',
 			array (
+				'doseplaneffectivedate',
 				'doseplanstartdate',
 				'doseplandose',
 				'doseplanunits',
 				'doseplantype',
 				'doseplansplit',
 				'doseplanincrementationtype',
-				'doseplantotal',
 				'doseplandec',
 				'doseplandays',
 				'takehomes',
@@ -128,8 +130,8 @@ class DosePlan extends EMRModule {
 			__("Starting Date") => fm_date_entry('doseplanstartdate'),
 			__("Dosing Plan") =>
 				html_form::select_widget('doseplantype', array(
-					'Methadone Dosing' => 'methadone',
-					'Incremental Dosing' => 'incremental',
+					'Regular Methadone Dosing' => 'regular-methadone',
+					'Incremental Methadone Dosing' => 'incremental-methadone',
 					'Exception Dosing' => 'exception'
 				)),
 			__("Dosage") =>
@@ -164,7 +166,6 @@ class DosePlan extends EMRModule {
 					'on_change' => 'adjustIncrementationView()'
 				))."
 			<div id=\"incrementationView\" style=\"display: ".( ($_REQUEST['doseplanincrementationtype']=='none' or $_REQUEST['doseplanincrementationtype']=='') ? 'none' : 'block' ).";\">
-			<div>".__("Total Dose Amount")." : ".html_form::text_widget("doseplantotal")."</div>
 			<div id=\"dayCountView\" style=\"display: ".( ($_REQUEST['doseplanincrementationtype']=='titration-decrease' or $_REQUEST['doseplanincrementationtype']=='titration-increase') ? 'block' : 'none' ).";\">".__("Number of Days")." : ".html_form::text_widget("doseplandays")."</div>
 			<div id=\"decView\" style=\"display: ".( ($_REQUEST['doseplanincrementationtype']=='behavioral' or $_REQUEST['doseplanincrementationtype']=='voluntary' or $_REQUEST['doseplanincrementationtype']=='adminstrative') ? 'block' : 'none' ).";\">".__("Daily Decrease Dose")." : ".html_form::text_widget("doseplandec")."</div>
 			</div>	
@@ -221,7 +222,7 @@ class DosePlan extends EMRModule {
 		if (!count($_REQUEST['doseplan'])) 
 		switch ($_REQUEST['doseplanincrementationtype']) {
 			case 'administrative':
-			if ( $_REQUEST['doseplantotal'] > 0 ) {
+			if ( $_REQUEST['doseplandose'] > 0 ) {
 				$amt = (int) ( $_REQUEST['doseplandose'] / $_REQUEST['doseplandec'] );
 				for ($i = 0; $i <= $amt; $i++ ) {
 					$dp[] = (int) $_REQUEST['doseplandec'];
@@ -254,14 +255,14 @@ class DosePlan extends EMRModule {
 
 			case 'voluntary':
 			case 'behavioral':
-			$dp = $this->figureInitialDosePlan( 0, abs($_REQUEST['doseplandose']), -(abs($_REQUEST['doseplandec'])) );
+			$dp = $this->figureInitialDosePlan( abs($_REQUEST['doseplandose']), -(abs($_REQUEST['doseplandec'])) );
 			break; // voluntary || behavioral
 
 			case 'none': default:
 			break;
 		} // end inctype
 
-		if (!count($_REQUEST['doseplan'])) 
+		//if (!count($_REQUEST['doseplan']) or !$_REQUEST['doseplan'][0])  {
 		switch ($_REQUEST['doseplanincrementationtype']) {
 			case 'administrative':
 			case 'behavioral':
@@ -271,9 +272,11 @@ class DosePlan extends EMRModule {
 			case 'voluntary':
 				// display dates
 			$date = fm_date_assemble('doseplanstartdate');
+			$count = 0;
 			foreach ($dp AS $dose) {
-				$dpout .= "<tr><td>".$this->dow($date)." ".$date."</td><td><input type=\"text\" name=\"doseplan[]\" value=\"$dose\" /></td></tr>\n";
+				$dpout .= "<tr><td>".$this->dow($date)." ".$date."</td><td><input type=\"text\" name=\"doseplan[]\" value=\"".( $_REQUEST['doseplan'][$count] ? $_REQUEST['doseplan'][$count] : $dose )."\" /></td></tr>\n";
 				$date = $this->increment_date ( $date );
+				$count++;
 			}
 			$w->add_page(
 				__("Incrementation"),
@@ -289,6 +292,7 @@ class DosePlan extends EMRModule {
 			case 'none': default:
 			break;
 		}
+		//}
 
 		$w->add_page (
 			__("Comments"),
@@ -329,10 +333,9 @@ class DosePlan extends EMRModule {
 
 			$query = $GLOBALS['sql']->insert_query (
 				$this->table_name,
-				array (
-					$this->variables
-				)
+				$this->variables
 			);
+			$GLOBALS['sql']->query( $query );
 			global $refresh;
 			if ($GLOBALS['return'] == 'manage') {
 			      $refresh = 'manage.php?id='.urlencode($_REQUEST['patient']);
