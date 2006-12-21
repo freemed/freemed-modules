@@ -169,7 +169,6 @@ class Dose extends EMRModule {
 			<script language=\"javascript\">
 			function dispenseDose ( ) {
 				// Disable button so it can't be pressed again
-			'dosegiven' => 1,
 				document.getElementById('dispenseButton').disabled = true;
 
 				// Get values to submit
