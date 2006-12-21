@@ -68,11 +68,17 @@ class Dose extends EMRModule {
 		);
 
 		$this->summary_vars = array (
-			__("Date")    =>	"doseassigneddate",
-			__("Given By") =>	"doseplangivenuser:user"
+			__("Date") =>		"doseassigneddate",
+			__("When") =>		"dosegivenstamp",
+			__("Given By") =>	"doseplangivenuser:user",
+			__("Status") =>		"_dosestatus",
+			__("Amount") =>		"doseunits"
+		);
+		$this->summary_query = array (
+			"CASE dosegiven WHEN 1 THEN 'dosed' WHEN 2 THEN 'mistake' ELSE 'not dosed' END AS _dosestatus",
 		);
 		$this->summary_options |= SUMMARY_VIEW | SUMMARY_PRINT;
-		$this->summary_order_by = 'id DESC';
+		$this->summary_order_by = 'id';
 
 		$this->EMRModule();
 	} // end constructor Dose
