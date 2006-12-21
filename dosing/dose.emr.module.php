@@ -78,14 +78,19 @@ class Dose extends EMRModule {
 	function mod ( ) { }
 
 	function addform ( ) {
-		$q = $GLOBALS['sql']->fetch_array($GLOBALS['sql']->query("SELECT id FROM doseplan WHERE doseplanpatient='".addslashes($_REQUEST['patient'])."' ORDER BY id DESC LIMIT 1"));
+		$q = $GLOBALS['sql']->fetch_array($GLOBALS['sql']->query("SELECT id FROM doseplan WHERE doseplanpatient='".addslashes($_REQUEST['patient'])."' AND doseplanactive=1 ORDER BY id DESC LIMIT 1"));
 		syslog(LOG_INFO, "dose last doseplan = ".$q['id']);
-		$_REQUEST['doseplanid'] = $GLOBALS['doseplanid'] = $q['id'];
+		$_REQUEST['doseplanid'] = $GLOBALS['doseplanid'] = $doseplanid = $q['id'];
 		$_REQUEST['doseassigneddate'] = $GLOBALS['doseassigneddate'] = date ('Y-m-d');
+
+		// Figure out dosing station based on id
+		$st = $GLOBALS['sql']->fetch_array($GLOBALS['sql']->query( "SELECT id FROM dosingstation WHERE dsurl LIKE '%".addslashes( $_SERVER['REMOTE_ADDR'] )."%' LIMIT 1" ));
+		if ($st['id'] > 0) { $_REQUEST['dosestation'] = $GLOBALS['dosestation'] = $st['id']; }
 
 		$GLOBALS['display_buffer'] .= html_form::form_table(array (
 			__("Hold Status (by patient)") => ( module_function( 'dosehold', 'GetCurrentHoldStatusByPatient', array ( $_REQUEST['patient'] ) ) ? "ACTIVE HOLD" : "No holds" ),
-			__("Dosing Plan") => module_function ('doseplan', 'widget', array ( 'doseplanid', $_REQUEST['patient'] ) ),
+			__("Dosing Plan") => module_function( 'doseplan', 'to_text', array ( $doseplanid ) )."<input type=\"hidden\" id=\"doseplanid\" value=\"".$doseplanid."\" />",
+			//module_function ('doseplan', 'widget', array ( 'doseplanid', $_REQUEST['patient'] ) ),
 			__("Dosing Station") => module_function ('dosingstation', 'widget', array ( 'dosestation' ) ),
 			__("Assigned Date") => fm_date_entry ( 'doseassigneddate' ),
 		));
@@ -95,17 +100,34 @@ class Dose extends EMRModule {
 		$GLOBALS['display_buffer'] .= "
 			<script language=\"javascript\">
 			function updateDoseAmount ( ) {
+				var station = document.getElementById('dosestation').value;
 				var plan = document.getElementById('doseplanid').value;
 				var dt = document.getElementById('doseassigneddate_cal').value;
+				if ( station < 1 ) {
+					alert('You must select a dosing station to continue.');
+					return false;
+				}
 				x_module_html('doseplan', 'ajax_doseForDate', plan + ',' + dt, updateDoseAmountPopulate);
 				x_module_html('".get_class($this)."', 'ajax_alreadyDosed', '".addslashes($_REQUEST['patient'])."' + ',' + dt, alreadyDosedProcess);
 			}
 			function alreadyDosedProcess ( value ) {
+				if (value.indexOf('ALREADY')) {
+					// Already dosed, don't allow dispensing.
+					document.getElementById('dispenseButton').disabled = true;
+				} else {
+					document.getElementById('dispenseButton').disabled = false;
+				}
 				document.getElementById('dosedalready').innerHTML = value;
 			}
 			function updateDoseAmountPopulate ( value ) {
-				document.getElementById('doseunits').value = value;
-				document.getElementById('stageTwo').style.display = 'block';
+				if ( value > 0 ) {
+					document.getElementById('doseunits').value = value;
+					document.getElementById('stageTwo').style.display = 'block';
+				} else {
+					alert('No dose is scheduled for the date selected.');
+					document.getElementById('doseunits').value = value;
+					document.getElementById('stageTwo').style.display = 'none';
+				}
 			}
 			</script>
 			<div align=\"center\">

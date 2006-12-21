@@ -57,6 +57,7 @@ class DosePlan extends EMRModule {
 			'doseplancomment' => SQL__TEXT,
 			'doseplanpickupdate' => SQL__DATE,
 			'doseplanreturndate' => SQL__DATE,
+			'doseplanactive' => SQL__INT_UNSIGNED(0),
 			'id' => SQL__SERIAL
 		);
 
@@ -82,7 +83,8 @@ class DosePlan extends EMRModule {
 			'doseplanmedicalorders',
 			'doseplancomment',
 			'doseplanpickupdate' => fm_date_assemble('doseplanpickupdate'),
-			'doseplanreturndate' => fm_date_assemble('doseplanreturndate')
+			'doseplanreturndate' => fm_date_assemble('doseplanreturndate'),
+			'doseplanactive' => 1
 		);
 
 		$this->summary_vars = array (
@@ -373,6 +375,9 @@ class DosePlan extends EMRModule {
 				$this->table_name,
 				$this->variables
 			);
+			$result = $GLOBALS['sql']->query( $query );
+			$id = $GLOBALS['sql']->last_record( $result, $this->table_name );
+			$query = "UPDATE doseplan SET doseplanactive=0 WHERE doseplanpatient='".addslashes($_REQUEST['patient'] )."' AND id<>'".addslashes( $id )."'";
 			$GLOBALS['sql']->query( $query );
 			global $refresh;
 			if ($GLOBALS['return'] == 'manage') {
