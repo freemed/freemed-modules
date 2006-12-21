@@ -516,7 +516,7 @@ class DosePlan extends EMRModule {
 	//	Dose status for the specified date, boolean.
 	//
 	function doseStatus ( $doseplanid, $date ) {
-		$q = "SELECT COUNT(*) AS c FROM doserecord d LEFT OUTER JOIN doseplan dp ON d.doseplanid=dp.id WHERE d.doseassigneddate='".addslashes($date)."' AND dp.id='".addslashes($doseplanid)."'";
+		$q = "SELECT COUNT(*) AS c FROM doserecord d LEFT OUTER JOIN doseplan dp ON d.doseplanid=dp.id WHERE d.doseassigneddate='".addslashes($date)."' AND dp.id='".addslashes($doseplanid)."' AND d.dosegiven=1";
 		$a = $GLOBALS['sql']->fetch_array( $GLOBALS['sql']->query ( $q ) );
 		return ( $a['c'] > 0 );
 	} // end method doseStatus

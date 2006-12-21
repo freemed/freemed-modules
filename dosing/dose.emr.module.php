@@ -47,6 +47,7 @@ class Dose extends EMRModule {
 			'dosepouredunits' => SQL__INT_UNSIGNED(0),
 			'dosepreparedunits' => SQL__INT_UNSIGNED(0),
 			'doseunits' => SQL__CHAR(10),
+			'dosecomment' => SQL__VARCHAR(250),
 			'id' => SQL__SERIAL
 		);
 
@@ -54,6 +55,7 @@ class Dose extends EMRModule {
 			'dosepatient' => $_REQUEST['patient'],
 			'doseplanid',
 			'doseassigneddate',
+			'dosegiven' => 1,
 			'dosegivenstamp' => SQL__NOW,
 			'dosegivenuser' => $GLOBALS['this_user']->user_number,
 			'dosestation',
@@ -61,7 +63,8 @@ class Dose extends EMRModule {
 			'dosemedicationdispensed',
 			'dosepouredunits',
 			'dosepreparedunits',
-			'doseunits'
+			'doseunits',
+			'dosecomment'
 		);
 
 		$this->summary_vars = array (
@@ -111,7 +114,7 @@ class Dose extends EMRModule {
 				x_module_html('".get_class($this)."', 'ajax_alreadyDosed', '".addslashes($_REQUEST['patient'])."' + ',' + dt, alreadyDosedProcess);
 			}
 			function alreadyDosedProcess ( value ) {
-				if (value.indexOf('ALREADY')) {
+				if (value.indexOf('ALREADY') != -1) {
 					// Already dosed, don't allow dispensing.
 					document.getElementById('dispenseButton').disabled = true;
 				} else {
@@ -160,6 +163,7 @@ class Dose extends EMRModule {
 			<script language=\"javascript\">
 			function dispenseDose ( ) {
 				// Disable button so it can't be pressed again
+			'dosegiven' => 1,
 				document.getElementById('dispenseButton').disabled = true;
 
 				// Get values to submit
@@ -197,9 +201,68 @@ class Dose extends EMRModule {
 
 			<center>
 			<div id=\"stageThree\" style=\"display:none;\">
-			Stage three, stub
+			<table border=\"0\">
+			<tr>
+				<td colspan=\"2\" align=\"center\">Dosing Mistake Entry</td>
+			</tr>
+			<tr>
+				<td>Poured Units</td>
+				<td><input type=\"text\" name=\"dosepouredunits\" id=\"dosepouredunits\" value=\"0\" /></td>
+			</tr>
+			<tr>
+				<td>Prepared Units</td>
+				<td><input type=\"text\" name=\"dosepreparedunits\" id=\"dosepreparedunits\" value=\"0\" /></td>
+			</tr>
+			<tr>
+				<td>Reason / Comment</td>
+				<td><input type=\"text\" name=\"dosecomment\" id=\"dosecomment\" /></td>
+			</tr>
+			<tr>
+				<td><label for=\"pouragain\">Pour Again?</label></td>
+				<td><input type=\"checkbox\" name=\"pouragain\" id=\"pouragain\" value=\"1\" /></td>
+			</tr>
+			<tr>
+				<td colspan=\"2\" align=\"center\"><input type=\"button\" id=\"mistakeButton\" value=\"Record Mistake\" onClick=\"recordMistake(); return true;\" />
+				<input type=\"button\" id=\"noMistakeButton\" value=\"Dosed Correctly\" onClick=\"window.location = '".( $_REQUEST['return'] == 'manage' ? "manage.php?id=".$_REQUEST['patient'] : "module_loader.php?module=".get_class($this)."&patient=".$_REQUEST['patient'] )."'; return true;\" /></td>
+			</tr>
+			</table>
 			</div> <!-- stageThree -->
 			</center>
+			<script language=\"javascript\">
+			function recordMistake ( ) {
+				var id = document.getElementById('id').value;
+				var comment = document.getElementById('dosecomment').value;
+				var poured = document.getElementById('dosepouredunits').value;
+				var prepared = document.getElementById('dosepreparedunits').value;
+
+				// A sanity clause?
+				if ( comment.length < 3 ) {
+					alert('You must specify a reason for the dose failing.');
+					return false;
+				}
+
+				// Avoid duplicate clicks
+				document.getElementById('mistakeButton').disabled = true;
+
+				// XmlHttpRequest send
+				x_module_html('dose', 'ajax_recordMistake', id + '##' + poured + '##' + prepared + '##' + comment, updateRecordMistake);
+			}
+			function updateRecordMistake ( value ) {
+				var pouragain = document.getElementById('pouragain').checked;
+				if ( pouragain ) {
+					// Enable dispense button, etc
+					document.getElementById('dispenseButton').disabled = false;
+					document.getElementById('dosedalready').innerHTML = 'Mistake Dosing';
+					document.getElementById('stageThree').style.display = 'none';
+					document.getElementById('message').innerHTML = '';
+					document.getElementById('message').style.backgroundColor = '#cccccc';
+					
+				} else {
+					// Kick to another window
+					window.location = '".( $_REQUEST['return'] == 'manage' ? "manage.php?id=".$_REQUEST['patient'] : "module_loader.php?module=".get_class($this)."&patient=".$_REQUEST['patient'] )."';
+				}
+			}
+			</script>
 		";
 	} // end method addform
 
@@ -221,6 +284,7 @@ class Dose extends EMRModule {
 			'doseassigneddate' => $date,
 			'doseplanid' => $doseplan,
 			'doseunits' => $units,
+			'dosegiven' => 1,
 			'dosegivenstamp' => SQL__NOW,
 			'dosegivenuser' => $GLOBALS['this_user']->user_number,
 			'dosestation' => $station,
@@ -260,10 +324,24 @@ class Dose extends EMRModule {
 
 	function ajax_alreadyDosed ( $blob ) {
 		list ( $patient, $doseassigneddate ) = explode ( ',', $blob );
-		$already = $GLOBALS['sql']->fetch_array($GLOBALS['sql']->query("SELECT COUNT(*) AS already FROM doserecord WHERE dosepatient='".addslashes($patient)."' AND doseassigneddate='".addslashes($doseassigneddate)."'"));
+		$already = $GLOBALS['sql']->fetch_array($GLOBALS['sql']->query("SELECT COUNT(*) AS already FROM doserecord WHERE dosepatient='".addslashes($patient)."' AND doseassigneddate='".addslashes($doseassigneddate)."' AND dosegiven <> 2"));
 		syslog(LOG_INFO, "dosed already = ".$already['already']);
 		return ( $already['already'] > 0 ? "<span style=\"color: #ff0000;\">ALREADY DOSED</span>" : "<b>Ready for Dosing</b>" );
 	} // end ajax_alreadyDosed
+
+	function ajax_recordMistake ( $blob ) {
+		list ( $id, $poured, $prepared, $comment ) = explode ( '##', $blob );
+		$q = $GLOBALS['sql']->update_query(
+			$this->table_name,
+			array (
+				'dosegiven' => 2,
+				'dosepreparedunits' => $prepared,
+				'dosepouredunits' => $poured,
+				'dosecomment' => $comment
+			), array ( 'id' => $id )
+		);
+		$GLOBALS['sql']->query( $q );
+	} // end ajax_recordMistake
 
 } // end class Dose
 
