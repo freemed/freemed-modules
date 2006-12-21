@@ -90,6 +90,7 @@ class DosePlan extends EMRModule {
 		$this->summary_vars = array (
 			__("User")    =>	"doseplanuser:user",
 			__("Effective")    =>	"doseplaneffectivedate",
+			__("Start")    =>	"doseplanstartdate",
 			__("Length")    =>	"doseplanlength",
 			__("Comment") =>	"doseplancomment"
 		);
@@ -447,19 +448,21 @@ class DosePlan extends EMRModule {
 	function ajax_display_dose_plan ( $doseplanid ) {
 		if (!$doseplanid) { return 'NO DOSE PLAN SPECIFIED'; }
 		$dp = freemed::get_link_rec( $doseplanid, $this->table_name );
-		$buffer .= "<table border=\"0\">\n";
-		$buffer .= "<tr>\n\t<th>Date</th>\n\t<th>Dose</th>\n\t<th>Status</th>\n</tr>\n";
+		$buffer .= "<table border=\"0\" cellspacing=\"0\" cellpadding=\"3\">\n";
+		$buffer .= "<tr>\n\t<th>Date</th>\n\t<th>Dose</th>\n\t<th>Status</th>\n\t<th>Take Home</th>\n</tr>\n";
 		$dt = $dp['doseplanstartdate'];
 		for ($i=1; $i<=$dp['doseplanlength']; $i++) {
 			// Use API to get the dose
 			$dose = $this->doseForDate( $doseplanid, $dt );
 			$status = $this->doseStatus( $doseplanid, $dt );
+			$takehome = $this->doseTakeHome( $doseplanid, $dt );
 
 			// Add this
-			$buffer .= "<tr>\n".
+			$buffer .= "<tr ".( !$status ? "onMouseOver=\"this.style.backgroundColor='#7777ff'; return true;\" onMouseOut=\"this.style.backgroundColor='transparent'; return true;\" onClick=\"if (document.getElementById('doseassigneddate_cal')) { document.getElementById('doseassigneddate_cal').value='${dt}'; } return true;\"" : "" )." >\n".
 				"\t<td>${dt}</td>\n".
 				"\t<td>${dose} ${dp['doseplanunits']}</td>\n".
 				"\t<td>".( $status ? "<span style=\"color: #ff0000;\">DISPENSED</span>" : "" )."</td>\n".
+				"\t<td>".( $takehome ? "<span style=\"color: #0000ff;\">TAKE HOME</span>" : "" )."</td>\n".
 				"</tr>\n";
 
 			// Increment date at the end
@@ -520,6 +523,26 @@ class DosePlan extends EMRModule {
 		$a = $GLOBALS['sql']->fetch_array( $GLOBALS['sql']->query ( $q ) );
 		return ( $a['c'] > 0 );
 	} // end method doseStatus
+
+	// Method: doseTakeHome
+	//
+	//	Determine dose takehome status based on a doseplan and date.
+	//
+	// Parameters:
+	//
+	//	$doseplanid - Id for the doseplan in question
+	//
+	//	$date - Date to query
+	//
+	// Returns:
+	//
+	//	Dose takehome status for the specified date, boolean.
+	//
+	function doseTakeHome ( $doseplanid, $date ) {
+		$q = "SELECT IF SUBSTR(dp.doseplantakehomesched FROM DATE_FORMAT('".addslashes($date)."', '%w')+1 FOR 1) = 'X' THEN 1 ELSE 0 END IF AS takehome doseplan dp WHERE dp.id='".addslashes($doseplanid)."'";
+		$a = $GLOBALS['sql']->fetch_array( $GLOBALS['sql']->query ( $q ) );
+		return ( $a['takehome'] == 1 );
+	} // end method doseTakeHome
 
 } // end class DosePlan
 

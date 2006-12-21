@@ -96,18 +96,34 @@ class Dose extends EMRModule {
 		$st = $GLOBALS['sql']->fetch_array($GLOBALS['sql']->query( "SELECT id FROM dosingstation WHERE dsurl LIKE '%".addslashes( $_SERVER['REMOTE_ADDR'] )."%' LIMIT 1" ));
 		if ($st['id'] > 0) { $_REQUEST['dosestation'] = $GLOBALS['dosestation'] = $st['id']; }
 
-		$GLOBALS['display_buffer'] .= html_form::form_table(array (
+		include_once(freemed::template_file('ajax.php'));
+
+		$GLOBALS['display_buffer'] .= 
+			"<center><table border=\"0\"><tr><td valign=\"top\">\n".
+			html_form::form_table(array (
 			__("Hold Status (by patient)") => ( module_function( 'dosehold', 'GetCurrentHoldStatusByPatient', array ( $_REQUEST['patient'] ) ) ? "ACTIVE HOLD" : "No holds" ),
 			__("Dosing Plan") => module_function( 'doseplan', 'to_text', array ( $doseplanid ) )."<input type=\"hidden\" id=\"doseplanid\" value=\"".$doseplanid."\" />",
-			//module_function ('doseplan', 'widget', array ( 'doseplanid', $_REQUEST['patient'] ) ),
 			__("Dosing Station") => module_function ('dosingstation', 'widget', array ( 'dosestation' ) ),
 			__("Assigned Date") => fm_date_entry ( 'doseassigneddate' ),
-		));
-
-		include_once(freemed::template_file('ajax.php'));
+		))."<td>".
+			"<center><div style=\"border: 1px solid #000000; width: 300px;\">\n".
+			"<div align=\"center\">\n".
+			ajax_expand_module_html(
+				'dosePlanDiv',
+				'doseplan',
+				'ajax_display_dose_plan',
+				"document.getElementById('doseplanid').value"
+			)." Show Dose Plan </div>
+			<div align=\"center\" id=\"dosePlanDiv\"></div>
+			</div></center>
+			</td></tr></table></center>\n";
 
 		$GLOBALS['display_buffer'] .= "
 			<script language=\"javascript\">
+
+			// Force initial load
+			x_module_html('doseplan', 'ajax_display_dose_plan', document.getElementById('doseplanid').value, x_dosePlanDiv_expand_div);
+
 			function updateDoseAmount ( ) {
 				var station = document.getElementById('dosestation').value;
 				var plan = document.getElementById('doseplanid').value;
@@ -150,17 +166,7 @@ class Dose extends EMRModule {
 			<div align=\"center\">".__("Units")."  ".html_form::text_widget( 'doseunits', array ( 'id' => 'doseunits' ) )."</div>
 			";
 
-		$GLOBALS['display_buffer'] .=
-			"<center><div style=\"border: 1px solid #000000; width: 300px;\">\n".
-			"<div align=\"center\">\n".
-			ajax_expand_module_html(
-				'dosePlanDiv',
-				'doseplan',
-				'ajax_display_dose_plan',
-				"document.getElementById('doseplanid').value"
-			)." Show Dose Plan </div>
-			<div align=\"center\" id=\"dosePlanDiv\"></div>
-			</div></center>
+		$GLOBALS['display_buffer'] .= "
 			<div align=\"center\">
 			<input type=\"button\" value=\"Dispense\" id=\"dispenseButton\" onClick=\"dispenseDose(); return true;\" />
 			</div>
@@ -170,6 +176,9 @@ class Dose extends EMRModule {
 			function dispenseDose ( ) {
 				// Disable button so it can't be pressed again
 				document.getElementById('dispenseButton').disabled = true;
+
+				// Save us some room
+				x_dosePlanDiv_contract_div();
 
 				// Get values to submit
 				var plan = document.getElementById('doseplanid').value;
@@ -228,12 +237,24 @@ class Dose extends EMRModule {
 			</tr>
 			<tr>
 				<td colspan=\"2\" align=\"center\"><input type=\"button\" id=\"mistakeButton\" value=\"Record Mistake\" onClick=\"recordMistake(); return true;\" />
+				<input type=\"button\" id=\"doseAnotherButton\" value=\"Another Dose\" onClick=\"doseAnother(); return true;\" />
 				<input type=\"button\" id=\"noMistakeButton\" value=\"Dosed Correctly\" onClick=\"window.location = '".( $_REQUEST['return'] == 'manage' ? "manage.php?id=".$_REQUEST['patient'] : "module_loader.php?module=".get_class($this)."&patient=".$_REQUEST['patient'] )."'; return true;\" /></td>
 			</tr>
 			</table>
 			</div> <!-- stageThree -->
 			</center>
 			<script language=\"javascript\">
+			function doseAnother ( ) {
+				document.getElementById('dispenseButton').disabled = false;
+				document.getElementById('stageTwo').style.display = 'none';
+				document.getElementById('stageThree').style.display = 'none';
+				document.getElementById('message').innerHTML = '';
+				document.getElementById('message').style.backgroundColor = '#cccccc';
+				document.getElementById('id').value = 0;
+
+				// Reload the schedule, forced
+				x_module_html('doseplan', 'ajax_display_dose_plan', document.getElementById('doseplanid').value, x_dosePlanDiv_expand_div);
+			}
 			function recordMistake ( ) {
 				var id = document.getElementById('id').value;
 				var comment = document.getElementById('dosecomment').value;
@@ -261,7 +282,6 @@ class Dose extends EMRModule {
 					document.getElementById('stageThree').style.display = 'none';
 					document.getElementById('message').innerHTML = '';
 					document.getElementById('message').style.backgroundColor = '#cccccc';
-					
 				} else {
 					// Kick to another window
 					window.location = '".( $_REQUEST['return'] == 'manage' ? "manage.php?id=".$_REQUEST['patient'] : "module_loader.php?module=".get_class($this)."&patient=".$_REQUEST['patient'] )."';
