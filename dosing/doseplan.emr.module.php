@@ -46,8 +46,6 @@ class DosePlan extends EMRModule {
 			'doseplantakehomesched' => SQL__CHAR(7),
 			'doseplanuser' => SQL__INT_UNSIGNED(0),
 			'doseplansplit' => SQL__INT_UNSIGNED(0),
-			'doseplansplit1' => SQL__INT_UNSIGNED(0),
-			'doseplansplit2' => SQL__INT_UNSIGNED(0),
 			'doseplantakehomecountgiven' => SQL__INT_UNSIGNED(0),
 			'doseplantakehomecountreturned' => SQL__INT_UNSIGNED(0),
 			'doseplanincrementationtype' => SQL__VARCHAR(50),
@@ -74,11 +72,9 @@ class DosePlan extends EMRModule {
 			'doseplanexceptiontype',
 			'doseplantakehomesched',
 			'doseplansplit',
-			'doseplansplit1',
-			'doseplansplit2',
 			'doseplantakehomecountgiven',
 			'doseplanincrementationtype',
-			'doseplanincrementationschedule' => join(',', $_REQUEST['doseplan']),
+			'doseplanincrementationschedule' => ( $_REQUEST['doseplansplit'] == 1 ? $_REQUEST['doseplansplit1'].','.$_REQUEST['doseplansplit2'] : join(',', $_REQUEST['doseplan']) ),
 			'doseplanlength' => count( $_REQUEST['doseplan'] ),
 			'doseplanmedicalorders',
 			'doseplancomment',
@@ -103,12 +99,13 @@ class DosePlan extends EMRModule {
 
 	function modform ( ) { }
 	function mod ( ) { }
+	function del ( ) { }
 
 	function addform ( ) {
-		if (!$_REQUEST['been_here']) {
+		if (!$_REQUEST['been_here'] and !$GLOBALS['been_here']) {
 			$_REQUEST['doseplaneffectivedate'] = $GLOBALS['doseplaneffectivedate'] = date('Y-m-d');
 			$_REQUEST['doseplanstartdate'] = $GLOBALS['doseplanstartdate'] = date('Y-m-d');
-			$_REQUEST['been_here'] = 1;
+			$_REQUEST['been_here'] = $GLOBALS['been_here'] = 1;
 		}
 
 		$w = CreateObject( 'PHP.wizard', array ( 'been_here', 'action', 'module', 'return', 'patient' ) );
@@ -129,6 +126,8 @@ class DosePlan extends EMRModule {
 				'doseplantype',
 				'doseplanexceptiontype',
 				'doseplansplit',
+				'doseplansplit1',
+				'doseplansplit2',
 				'doseplanincrementationtype',
 				'doseplandec',
 				'doseplandays',
@@ -160,10 +159,19 @@ class DosePlan extends EMRModule {
 			<script language=\"javascript\">
 			function adjustExceptionView() {
 				var eV = document.getElementById('exceptionView');
+				var iV = document.getElementById('incrementationViewWidget');
+				var iVl = document.getElementById('incrementationViewLabel');
 				if ( document.getElementById('doseplantype').value == 'exception' ) {
 					eV.style.display = 'block';
 				} else {
 					eV.style.display = 'none';
+				}
+				if ( document.getElementById('doseplantype').value == 'incremental-methadone' ) {
+					iV.style.display = 'block';
+					iVl.style.display = 'block';
+				} else {
+					iV.style.display = 'none';
+					iVl.style.display = 'none';
 				}
 			}
 			</script>
@@ -176,18 +184,33 @@ class DosePlan extends EMRModule {
 					)
 				),
 			__("Split Dose?") =>
-				"<input type=\"radio\" id=\"doseplansplity\" name=\"doseplansplit\" value=\"1\" onClick=\"splitDose(1); return true;\" ".( $_REQUEST['doseplansplit']==1 ? "SELECTED" : "" )."><label for=\"doseplansplity\">".__("Yes")."</label> ".
-				"<input type=\"radio\" id=\"doseplansplitn\" name=\"doseplansplit\" value=\"0\" onClick=\"splitDose(0); return true;\" ".( $_REQUEST['doseplansplit']==0 ? "SELECTED" : "" )."><label for=\"doseplansplitn\">".__("No")."</label> ".
+				"<input type=\"radio\" id=\"doseplansplity\" name=\"doseplansplit\" value=\"1\" onClick=\"splitDose(1); return true;\" ".( $_REQUEST['doseplansplit']==1 ? "CHECKED" : "" )."><label for=\"doseplansplity\">".__("Yes")."</label> ".
+				"<input type=\"radio\" id=\"doseplansplitn\" name=\"doseplansplit\" value=\"0\" onClick=\"splitDose(0); return true;\" ".( $_REQUEST['doseplansplit']!=1 ? "CHECKED" : "" )."><label for=\"doseplansplitn\">".__("No")."</label> ".
 				"<script language=\"javascript\">
 				function splitDose ( b ) {
 					document.getElementById('splitDoseDiv').style.display = b ? 'block' : 'none';
 				}
+				function checkSplitDose ( ) {
+					if (document.getElementById('splitDoseDiv').style.display == 'block') {
+						if ( ( parseInt(document.getElementById('doseplansplit1').value) + parseInt(document.getElementById('doseplansplit2').value) ) != parseInt(document.getElementById('doseplandose').value) ) {
+							alert('Split dose values must add up to the total value of the dose!');
+							document.getElementById('doseplansplit1').value = '0';
+							document.getElementById('doseplansplit2').value = '0';
+							document.getElementById('doseplansplit1').focus();
+							return false;
+						}
+					}
+					// Assume true if there's no split dose
+					return true;
+				}
 				</script>
 				<div id=\"splitDoseDiv\" style=\"display: ".( $_REQUEST['doseplansplit']==1 ? 'block' : 'none' ).";\">
-				HERE
+					<input type=\"text\" id=\"doseplansplit1\" name=\"doseplansplit1\" />
+					<input type=\"text\" id=\"doseplansplit2\" name=\"doseplansplit2\" onBlur=\"return checkSplitDose();\" />
 				</div>
 				",
-			__("Incrementation Type") =>
+			"<span id=\"incrementationViewLabel\" style=\"display:none;\">".__("Incrementation Type")."</span>" =>
+				"<div id=\"incrementationViewWidget\" style=\"display:none;\" >".
 				html_form::select_widget('doseplanincrementationtype', array(
 					'NONE' => 'none',
 					'Administrative' => 'administrative',
@@ -198,7 +221,7 @@ class DosePlan extends EMRModule {
 					'Financial' => 'financial'
 				), array(
 					'on_change' => 'adjustIncrementationView()'
-				))."
+				))."</div>
 			<div id=\"incrementationView\" style=\"display: ".( ($_REQUEST['doseplanincrementationtype']=='none' or $_REQUEST['doseplanincrementationtype']=='') ? 'none' : 'block' ).";\">
 			<div id=\"dayCountView\" style=\"display: ".( ($_REQUEST['doseplanincrementationtype']=='titration-decrease' or $_REQUEST['doseplanincrementationtype']=='titration-increase') ? 'block' : 'none' ).";\">".__("Number of Days")." : ".html_form::text_widget("doseplandays")."</div>
 			<div id=\"decView\" style=\"display: ".( ($_REQUEST['doseplanincrementationtype']=='behavioral' or $_REQUEST['doseplanincrementationtype']=='voluntary' or $_REQUEST['doseplanincrementationtype']=='administrative') ? 'block' : 'none' ).";\">".__("Daily Decrease Dose")." : ".html_form::text_widget("doseplandec")."</div>
@@ -403,6 +426,25 @@ class DosePlan extends EMRModule {
 		}
 	} // end method addform
 
+	function view ( ) {
+		global $sql; global $display_buffer; global $patient;
+		$display_buffer .= freemed_display_itemlist (
+			$sql->query("SELECT * FROM ".$this->table_name." ".
+				"WHERE ".$this->patient_field."='".addslashes($patient)."' ".
+				freemed::itemlist_conditions(false)." ".
+				"ORDER BY ".$this->order_by),
+			$this->page_name,
+			array(
+				__("User")    =>	"doseplanuser",
+				__("Effective")    =>	"doseplaneffectivedate",
+				__("Start")    =>	"doseplanstartdate",
+				__("Length")    =>	"doseplanlength",
+				__("Comment") =>	"doseplancomment"
+			), NULL, NULL, NULL, NULL,
+                        ITEMLIST_VIEW
+		);
+	} // end method view
+
 	function figureInitialDosePlan ( $total, $increment, $stop_at = 0 ) {
 		$my_total = $total;
 		while ( $my_total > 0 and $my_total > $stop_at ) {
@@ -451,6 +493,8 @@ class DosePlan extends EMRModule {
 		$buffer .= "<table border=\"0\" cellspacing=\"0\" cellpadding=\"3\">\n";
 		$buffer .= "<tr>\n\t<th>Date</th>\n\t<th>Dose</th>\n\t<th>Status</th>\n\t<th>Take Home</th>\n</tr>\n";
 		$dt = $dp['doseplanstartdate'];
+		if ($dp['doseplantype'] != 'incremental-methadone') { $dp['doseplanlength'] = 1; }
+		if ($dp['doseplansplit'] == 1) { $dp['doseplanlength'] = 2; }
 		for ($i=1; $i<=$dp['doseplanlength']; $i++) {
 			// Use API to get the dose
 			$dose = $this->doseForDate( $doseplanid, $dt );
@@ -493,6 +537,9 @@ class DosePlan extends EMRModule {
 	//
 	function doseForDate ( $doseplanid, $date ) {
 		$plan = freemed::get_link_rec( $doseplanid, $this->table_name );
+		if ($plan['doseplantype'] != 'incremental-methadone' && $plan['doseplanstartdate'] == $date && !$plan['doseplansplit']) {
+			return $plan['doseplandose'];
+		}
 		$doses = explode( ',', $plan['doseplanincrementationschedule'] );
 		// Avoid divide by 0, give initial date.
 		if ( $date == $plan['doseplanstartdate'] ) {

@@ -42,10 +42,11 @@ class DoseHold extends EMRModule {
 			'doseholdstatus' => SQL__INT_UNSIGNED(0),
 			'doseholdrole' => SQL__INT_UNSIGNED(0),
 			'doseholduser' => SQL__INT_UNSIGNED(0),
-			'doseholdcoment' => SQL__TEXT,
+			'doseholdcomment' => SQL__TEXT,
 			'id' => SQL__SERIAL
 		);
 
+		if (!is_object($GLOBALS['this_user'])) { global $this_user; $this_user = CreateObject('_FreeMED.User'); }
 		$this->variables = array (
 			'doseholduser' => $GLOBALS['this_user']->user_number,
 			'doseholdpatient' => $_REQUEST['patient'],
@@ -69,6 +70,22 @@ class DoseHold extends EMRModule {
 
 		$this->EMRModule();
 	} // end constructor DoseHold
+
+	function view ( ) {
+		global $sql; global $display_buffer; global $patient;
+		$display_buffer .= freemed_display_itemlist (
+			$sql->query("SELECT *,".join(",",$this->summary_query)." FROM ".$this->table_name." ".
+				"WHERE ".$this->patient_field."='".addslashes($patient)."' ".
+				freemed::itemlist_conditions(false)." ".
+				"ORDER BY ".$this->order_by),
+			$this->page_name,
+			array(
+				__("Date") => 'ts',
+				__("Type") => 'hold_type',
+				__("Status") => 'status'
+			)
+		);
+	} // end method view
 
 	function form_table ( ) {
 		return array (

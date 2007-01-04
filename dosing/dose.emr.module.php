@@ -85,6 +85,7 @@ class Dose extends EMRModule {
 
 	function modform ( ) { }
 	function mod ( ) { }
+	function del ( ) { }
 
 	function addform ( ) {
 		$q = $GLOBALS['sql']->fetch_array($GLOBALS['sql']->query("SELECT id FROM doseplan WHERE doseplanpatient='".addslashes($_REQUEST['patient'])."' AND doseplanactive=1 ORDER BY id DESC LIMIT 1"));
@@ -217,6 +218,14 @@ class Dose extends EMRModule {
 			<div id=\"stageThree\" style=\"display:none;\">
 			<table border=\"0\">
 			<tr>
+				<td>Bottles Given / Returned</td>
+				<td>
+					<input type=\"text\" name=\"doseplantakehomecountgiven\" id=\"doseplantakehomecountgiven\" value=\"0\" /> <b>/</b>
+					<input type=\"text\" name=\"doseplantakehomecountreturned\" id=\"doseplantakehomecountreturned\" value=\"0\" />
+					<input type=\"button\" id=\"bottlesButton\" value=\"Record\" onClick=\"recordBottles();\" />
+				</td>
+			</tr>
+			<tr>
 				<td colspan=\"2\" align=\"center\">Dosing Mistake Entry</td>
 			</tr>
 			<tr>
@@ -255,6 +264,21 @@ class Dose extends EMRModule {
 				// Reload the schedule, forced
 				x_module_html('doseplan', 'ajax_display_dose_plan', document.getElementById('doseplanid').value, x_dosePlanDiv_expand_div);
 			}
+			function recordBottles ( ) {
+				var doseplan = document.getElementById('doseplanid').value;
+				var given = document.getElementById('doseplantakehomecountgiven').value;
+				var returned = document.getElementById('doseplantakehomecountreturned').value;
+				document.getElementById('bottlesButton').disabled = true;
+				x_module_html('dose', 'ajax_recordBottles', doseplan + '##' + given + '##' + returned , updateRecordBottles);
+			}
+			function updateRecordBottles ( value ) {
+				if ( value == 1 ) {
+					alert('Updated bottle counts.');
+				} else {
+					alert('Failed to update bottle counts.');
+				}
+				document.getElementById('bottlesButton').disabled = false;
+			}
 			function recordMistake ( ) {
 				var id = document.getElementById('id').value;
 				var comment = document.getElementById('dosecomment').value;
@@ -290,6 +314,25 @@ class Dose extends EMRModule {
 			</script>
 		";
 	} // end method addform
+
+	function view ( ) {
+		global $sql; global $display_buffer; global $patient;
+		$display_buffer .= freemed_display_itemlist (
+			$sql->query("SELECT *,CASE dosegiven WHEN 1 THEN 'dosed' WHEN 2 THEN 'mistake' ELSE 'not dosed' END AS _dosestatus FROM ".$this->table_name." ".
+				"WHERE ".$this->patient_field."='".addslashes($patient)."' ".
+				freemed::itemlist_conditions(false)." ".
+				"ORDER BY ".$this->order_by),
+			$this->page_name,
+			array(
+				__("Date") =>		"doseassigneddate",
+				__("When") =>		"dosegivenstamp",
+				__("Given By") =>	"doseplangivenuser",
+				__("Status") =>		"_dosestatus",
+				__("Amount") =>		"doseunits"
+			), NULL, NULL, NULL, NULL,
+                        ITEMLIST_VIEW
+		);
+	} // end method view
 
 	//function dispenseDose ( $patient, $doseplan, $units, $station ) {
 	function dispenseDose ( $blob ) {
@@ -353,6 +396,19 @@ class Dose extends EMRModule {
 		syslog(LOG_INFO, "dosed already = ".$already['already']);
 		return ( $already['already'] > 0 ? "<span style=\"color: #ff0000;\">ALREADY DOSED</span>" : "<b>Ready for Dosing</b>" );
 	} // end ajax_alreadyDosed
+
+	function ajax_recordBottles ( $blob ) {
+		list ( $id, $given, $returned ) = explode ( '##', $blob );
+		$q = $GLOBALS['sql']->update_query(
+			'doseplan',
+			array (
+				'doseplantakehomecountgiven' => $given,
+				'doseplantakehomecountreturned' => $returned
+			), array ( 'id' => $id )
+		);
+		$res = $GLOBALS['sql']->query( $q );
+		return $res ? '1' : '';
+	} // end ajax_recordBottles
 
 	function ajax_recordMistake ( $blob ) {
 		list ( $id, $poured, $prepared, $comment ) = explode ( '##', $blob );
