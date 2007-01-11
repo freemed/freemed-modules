@@ -58,7 +58,7 @@ class DoseHold extends EMRModule {
 			'doseholdcomment'
 		);
 
-		$this->summary_view = array (
+		$this->summary_vars = array (
 			__("Date") => 'ts',
 			__("Type") => 'hold_type',
 			__("Status") => 'status'
@@ -99,7 +99,7 @@ class DoseHold extends EMRModule {
 					)
 				),
 			__("Status") =>
-				html_form::select_widget( 'doseholdtype',
+				html_form::select_widget( 'doseholdstatus',
 					array (
 						__("Inactive") => 0,
 						__("Active") => 1,
