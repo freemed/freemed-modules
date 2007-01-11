@@ -264,6 +264,13 @@ class Dose extends EMRModule {
 				x_module_html('".get_class($this)."', 'dispenseDose', '".addslashes($_REQUEST['patient'])."' + ',' + dt + ',' + plan + ',' + units + ',' + station, dispenseDoseAction);
 			}
 			function dispenseDoseAction ( value ) {
+				if ( value == -99 ) {
+					document.getElementById('dispenseButton').disabled = false;
+					document.getElementById('message').innerHTML = 'Split dosing has been attempted with a non-valid value.';
+					document.getElementById('message').style.backgroundColor = '#ff0000';
+					document.getElementById('stageThree').style.display = 'none';
+					return true;
+				}
 				if ( value < 0 ) {
 					// Error in dosing, negative value, make sure it's set properly
 					document.getElementById('id').value = 0 - value;
@@ -414,6 +421,23 @@ class Dose extends EMRModule {
 		list ( $patient, $date, $doseplan, $units, $station ) = explode ( ',', $blob );
 		syslog(LOG_INFO, "dispenseDose| blob = $blob");
 		syslog(LOG_INFO, "dispenseDose| called with $patient, $date, $doseplan, $units, $station");
+
+		// Check for invalid split dosing amounts
+		$plan = freemed::get_link_rec($doseplan, 'doseplan');
+		if ( $plan['doseplansplit'] == 1 ) {
+			// get value for past dose for today.
+			$lastq = $GLOBALS['sql']->query("SELECT * FROM doserecord WHERE dosegiven=1 AND doseassigneddate='".addslashes($date)."' AND dosepatient='".addslashes($patient)."'");
+			$lastdosetotal = 0;
+			while ($lastr = $GLOBALS['sql']->fetch_array($lastq)) {
+				syslog(LOG_INFO, "dispenseDose | adding dose of ".$lastr['doseunits']);
+				$lastdosetotal += $lastr['doseunits'];
+			}
+			if ( ($lastdosetotal + $units) > $plan['doseplandose'] ) {
+				// Return specific error
+				return -99;
+			}
+		}
+
 		$pwd = PHYSICAL_LOCATION;
 		$cmd = $pwd.'/scripts/dosing_frontend '.escapeshellarg($patient).' '.escapeshellarg($units).' '.escapeshellarg($station);
 		syslog(LOG_INFO, "dispenseDose| cmd = $cmd");
