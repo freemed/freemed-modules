@@ -77,13 +77,66 @@ class Dose extends EMRModule {
 		$this->summary_query = array (
 			"CASE dosegiven WHEN 1 THEN 'dosed' WHEN 2 THEN 'mistake' ELSE 'not dosed' END AS _dosestatus",
 		);
-		$this->summary_options |= SUMMARY_VIEW | SUMMARY_PRINT;
+		$this->summary_options |= SUMMARY_VIEW | SUMMARY_PRINT | SUMMARY_MODIFY;
 		$this->summary_order_by = 'id';
 
 		$this->EMRModule();
 	} // end constructor Dose
 
-	function modform ( ) { }
+	function modform ( ) {
+		include_once(freemed::template_file('ajax.php'));
+		// This is really only being used for "mistakes"
+		$GLOBALS['display_buffer'] .= "
+			<script language=\"javascript\">
+			function recordMistake ( ) {
+				var id = document.getElementById('id').value;
+				var comment = document.getElementById('dosecomment').value;
+				var poured = document.getElementById('dosepouredunits').value;
+				var prepared = document.getElementById('dosepreparedunits').value;
+
+				// A sanity clause?
+				if ( comment.length < 3 ) {
+					alert('You must specify a reason for the dose failing.');
+					return false;
+				}
+
+				// Avoid duplicate clicks
+				document.getElementById('mistakeButton').disabled = true;
+
+				// XmlHttpRequest send
+				x_module_html('dose', 'ajax_recordMistake', id + '##' + poured + '##' + prepared + '##' + comment, updateRecordMistake);
+			}
+			function updateRecordMistake ( value ) {
+				// Kick to another window
+				window.location = '".( $_REQUEST['return'] == 'manage' ? "manage.php?id=".$_REQUEST['patient'] : "module_loader.php?module=".get_class($this)."&patient=".$_REQUEST['patient'] )."';
+			}
+			</script>
+			<form>
+			<input type=\"hidden\" name=\"id\" id=\"id\" value=\"".prepare($_REQUEST['id'])."\" />
+			<input type=\"hidden\" name=\"return\" id=\"return\" value=\"".prepare($_REQUEST['return'])."\" />
+			<table border=\"0\">
+			<tr>
+				<td colspan=\"2\" align=\"center\">Dosing Mistake Entry</td>
+			</tr>
+			<tr>
+				<td>Poured Units</td>
+				<td><input type=\"text\" name=\"dosepouredunits\" id=\"dosepouredunits\" value=\"0\" /></td>
+			</tr>
+			<tr>
+				<td>Prepared Units</td>
+				<td><input type=\"text\" name=\"dosepreparedunits\" id=\"dosepreparedunits\" value=\"0\" /></td>
+			</tr>
+			<tr>
+				<td>Reason / Comment</td>
+				<td><input type=\"text\" name=\"dosecomment\" id=\"dosecomment\" /></td>
+			</tr>
+			<tr>
+				<td colspan=\"2\" align=\"center\"><input type=\"button\" id=\"mistakeButton\" value=\"Record Mistake\" onClick=\"recordMistake(); return true;\" />
+				<input type=\"button\" id=\"noMistakeButton\" value=\"Dosed Correctly\" onClick=\"window.location = '".( $_REQUEST['return'] == 'manage' ? "manage.php?id=".$_REQUEST['patient'] : "module_loader.php?module=".get_class($this)."&patient=".$_REQUEST['patient'] )."'; return true;\" /></td>
+			</tr>
+			</table>
+		";
+	}
 	function mod ( ) { }
 	function del ( ) { }
 
@@ -99,10 +152,32 @@ class Dose extends EMRModule {
 
 		include_once(freemed::template_file('ajax.php'));
 
+		$hold_status = module_function( 'dosehold', 'GetCurrentHoldStatusByPatient', array ( $_REQUEST['patient'] ) );
+		switch ($hold_status) {
+			case 1:
+			$hold_type = "SOFT HOLD";
+			break;
+
+			case 2:
+			$GLOBALS['display_buffer'] .= "
+			<div align=\"center\">
+			<b>There is a hard hold on this patient.</b>
+			<br/>
+			<a onClick=\"window.location(-1); return true;\" class=\"button\">Go Back</a>
+			</div>
+			";
+			return false;
+			break;
+
+			case 0: default:
+			$hold_type = "No holds";
+			break; // 0 = no hold
+		}
+
 		$GLOBALS['display_buffer'] .= 
 			"<center><table border=\"0\"><tr><td valign=\"top\">\n".
 			html_form::form_table(array (
-			__("Hold Status (by patient)") => ( module_function( 'dosehold', 'GetCurrentHoldStatusByPatient', array ( $_REQUEST['patient'] ) ) ? "ACTIVE HOLD" : "No holds" ),
+			__("Hold Status (by patient)") => $hold_text,
 			__("Dosing Plan") => module_function( 'doseplan', 'to_text', array ( $doseplanid ) )."<input type=\"hidden\" id=\"doseplanid\" value=\"".$doseplanid."\" />",
 			__("Dosing Station") => module_function ('dosingstation', 'widget', array ( 'dosestation' ) ),
 			__("Assigned Date") => fm_date_entry ( 'doseassigneddate' ),
@@ -392,8 +467,28 @@ class Dose extends EMRModule {
 
 	function ajax_alreadyDosed ( $blob ) {
 		list ( $patient, $doseassigneddate ) = explode ( ',', $blob );
-		$already = $GLOBALS['sql']->fetch_array($GLOBALS['sql']->query("SELECT COUNT(*) AS already FROM doserecord WHERE dosepatient='".addslashes($patient)."' AND doseassigneddate='".addslashes($doseassigneddate)."' AND dosegiven <> 2"));
-		syslog(LOG_INFO, "dosed already = ".$already['already']);
+		$already = $GLOBALS['sql']->fetch_array($GLOBALS['sql']->query("SELECT COUNT(*) AS already, dp.doseplansplit AS issplit FROM doserecord dr LEFT OUTER JOIN doseplan dp ON dp.id=dr.doseplanid WHERE dr.dosepatient='".addslashes($patient)."' AND dr.doseassigneddate='".addslashes($doseassigneddate)."' AND dr.dosegiven <> 2 GROUP BY dr.dosepatient"));
+		syslog(LOG_INFO, "dosed already = ".$already['already'].", issplit = ".$already['issplit']);
+		// If we're dealing with splits ...
+		if ($already['issplit']+0 > 0) {
+			switch ( $already['already'] ) {
+				case 1:
+				return "First dose already given (split dosing)";
+				break;
+
+				case 2:
+				return "<span style=\"color: #ff0000;\">ALREADY DOSED</span>";
+				break;
+
+				case 0:
+				return "<b>Ready for Dosing</b>";
+				break;
+
+				default:
+				return "ERROR";
+				break;
+			}
+		}
 		return ( $already['already'] > 0 ? "<span style=\"color: #ff0000;\">ALREADY DOSED</span>" : "<b>Ready for Dosing</b>" );
 	} // end ajax_alreadyDosed
 

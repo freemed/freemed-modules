@@ -46,6 +46,8 @@ class DosePlan extends EMRModule {
 			'doseplantakehomesched' => SQL__CHAR(7),
 			'doseplanuser' => SQL__INT_UNSIGNED(0),
 			'doseplansplit' => SQL__INT_UNSIGNED(0),
+			'doseplansplit1' => SQL__INT_UNSIGNED(0),
+			'doseplansplit2' => SQL__INT_UNSIGNED(0),
 			'doseplantakehomecountgiven' => SQL__INT_UNSIGNED(0),
 			'doseplantakehomecountreturned' => SQL__INT_UNSIGNED(0),
 			'doseplanincrementationtype' => SQL__VARCHAR(50),
@@ -72,9 +74,11 @@ class DosePlan extends EMRModule {
 			'doseplanexceptiontype',
 			'doseplantakehomesched',
 			'doseplansplit',
+			'doseplansplit1',
+			'doseplansplit2',
 			'doseplantakehomecountgiven',
 			'doseplanincrementationtype',
-			'doseplanincrementationschedule' => ( $_REQUEST['doseplansplit'] == 1 ? $_REQUEST['doseplansplit1'].','.$_REQUEST['doseplansplit2'] : join(',', $_REQUEST['doseplan']) ),
+			'doseplanincrementationschedule' => join(',', $_REQUEST['doseplan']),
 			'doseplanlength' => count( $_REQUEST['doseplan'] ),
 			'doseplanmedicalorders',
 			'doseplancomment',
@@ -490,6 +494,19 @@ class DosePlan extends EMRModule {
 	function ajax_display_dose_plan ( $doseplanid ) {
 		if (!$doseplanid) { return 'NO DOSE PLAN SPECIFIED'; }
 		$dp = freemed::get_link_rec( $doseplanid, $this->table_name );
+		if ($dp['doseplantype'] == 'regular-methadone') {
+			// Handle regular and/or split dosing
+			$buffer .= "<table border=\"0\" cellspacing=\"0\" cellpadding=\"3\">\n";
+			$buffer .= "<tr><td colspan=\"2\">Regular Dosing</td></tr>\n";
+			if ($dp['doseplansplit']) {
+				$buffer .= "<tr><td>First Dose:</td><td>${dp['doseplansplit1']} ${dp['doseplanunits']}</td></tr>\n";
+				$buffer .= "<tr><td>Second Dose:</td><td>${dp['doseplansplit2']} ${dp['doseplanunits']}</td></tr>\n";
+			} else {
+				$buffer .= "<tr><td colspan=\"2\">${dp['doseplandose']} ${dp['doseplanunits']}</td></tr>\n";
+			}
+			$buffer .= "</table>\n";
+			return $buffer;
+		}
 		$buffer .= "<table border=\"0\" cellspacing=\"0\" cellpadding=\"3\">\n";
 		$buffer .= "<tr>\n\t<th>Date</th>\n\t<th>Dose</th>\n\t<th>Status</th>\n\t<th>Take Home</th>\n</tr>\n";
 		$dt = $dp['doseplanstartdate'];
@@ -537,6 +554,26 @@ class DosePlan extends EMRModule {
 	//
 	function doseForDate ( $doseplanid, $date ) {
 		$plan = freemed::get_link_rec( $doseplanid, $this->table_name );
+		if ($plan['doseplantype'] == 'regular-methadone') {
+			// No dose if before start of plan
+			if ( $this->dateToStamp( $date ) < $this->dateToStamp( $plan['doseplanstartdate'] ) ) {
+				return 0;
+			}
+
+			// Handle regular and split dosing
+			if ($plan['doseplansplit']) {
+				// If there has been a dose given today, doseplansplit2, else doseplansplit1
+				$c = $GLOBALS['sql']->fetch_array($GLOBALS['sql']->query("SELECT COUNT(*) AS my_count FROM doserecord WHERE doseassigneddate='".addslashes($date)."' AND dosegiven=1 AND doseplanid='".addslashes($doseplanid)."'"));
+				if ($c['my_count'] == 1) {
+					return $plan['doseplansplit2'];
+				} else {
+					return $plan['doseplansplit1'];
+				}
+			} else {
+				// Plain old, plain old
+				return $plan['doseplandose'];
+			}
+		}
 		if ($plan['doseplantype'] != 'incremental-methadone' && $plan['doseplanstartdate'] == $date && !$plan['doseplansplit']) {
 			return $plan['doseplandose'];
 		}

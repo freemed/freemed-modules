@@ -51,6 +51,7 @@ class DoseHold extends EMRModule {
 			'doseholduser' => $GLOBALS['this_user']->user_number,
 			'doseholdpatient' => $_REQUEST['patient'],
 			'doseholddoseplan',
+			'doseholdtype',
 			'doseholdstamp' => SQL__NOW,
 			'doseholdstatus',
 			'doseholdrole',
@@ -118,26 +119,6 @@ class DoseHold extends EMRModule {
 		);
 	}
 
-	// Method: GetCurrentHoldStatusByPlan
-	//
-	//	Determine if there are active holds on a particular dose
-	//	plan by id.
-	//
-	// Parameters:
-	//
-	//	$plan - Dose plan id
-	//
-	// Returns:
-	//
-	//	Boolean.
-	//
-	function GetCurrentHoldStatusByPlan ( $plan ) {
-		$query = "SELECT COUNT(*) AS my_count FROM doserecord dr LEFT OUTER JOIN dosehold dh ON dh.doseholdplan = dr.doseplan WHERE dh.doseholdplan='".addslashes($plan)."' AND dh.doseholdstatus = 1 AND dh.doseholdtype > 0 AND dh.doseholdstamp <= NOW() ORDER BY dh.doseholdstamp";
-		$result = $GLOBALS['sql']->query( $query );
-		$r = $GLOBALS['sql']->fetch_array( $result );
-		return $r['my_count'] > 0;
-	} // end method GetCurrentHoldStatusByPlan
-
 	// Method: GetCurrentHoldStatusByPatient
 	//
 	//	Determine if there are active holds on a particular patient.
@@ -148,13 +129,13 @@ class DoseHold extends EMRModule {
 	//
 	// Returns:
 	//
-	//	Boolean.
+	//	0 if there are no holds, 1 for soft "holds", 2 for hard "holds"
 	//
 	function GetCurrentHoldStatusByPatient ( $patient ) {
-		$query = "SELECT COUNT(*) AS my_count FROM doserecord dr LEFT OUTER JOIN dosehold dh ON dh.doseholdplan = dr.doseplan WHERE dh.doseholdpatient='".addslashes($patient)."' AND dh.doseholdstatus = 1 AND dh.doseholdtype > 0 AND dh.doseholdstamp <= NOW() ORDER BY dh.doseholdstamp";
+		$query = "SELECT COUNT(*) AS my_count, MAX(dh.doseholdtype) AS my_type FROM dosehold dh WHERE dh.doseholdpatient='".addslashes($patient)."' AND dh.doseholdstatus = 1 AND dh.doseholdtype > 0 AND dh.doseholdstamp <= NOW() ORDER BY dh.doseholdstamp";
 		$result = $GLOBALS['sql']->query( $query );
 		$r = $GLOBALS['sql']->fetch_array( $result );
-		return $r['my_count'] > 0;
+		return $r['my_count'] ? $r['my_type'] : 0;
 	} // end method GetCurrentHoldStatusByPatient
 
 } // end class DoseHold
