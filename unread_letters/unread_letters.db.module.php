@@ -132,6 +132,11 @@ class UnreadLetters extends MaintenanceModule {
                 $display_buffer .= "\n<p/>\n";
 	} // end method view
 
+	function del ( ) {
+		$this->table_name = 'lettersrepository';
+		$this->_del();
+	}
+
 	function display ( ) {
 		global $display_buffer, $id;
 
@@ -146,7 +151,6 @@ class UnreadLetters extends MaintenanceModule {
 		}
 
 		if ($_REQUEST['submit_action'] == __("Delete")) {
-			$this->table_name = 'lettersrepository';
 			$this->del();
 			return false;
 		}
