@@ -45,6 +45,7 @@ class LettersRepository extends EMRModule {
 		$this->variables = array (
 			"letterdt" => fm_date_assemble("letterdt"),
 			"lettereoc",
+			"lettersubject",
 			"letterfrom",
 			"letterto",
 			"lettercc" => ( is_array($_REQUEST['lettercc']) ?
@@ -68,6 +69,7 @@ class LettersRepository extends EMRModule {
 			"lettereoc" => SQL__TEXT,
 			"letterfrom" => SQL__VARCHAR(150),
 			"letterto" => SQL__VARCHAR(150),
+			"lettersubject" => SQL__VARCHAR(150),
 			"lettercc" => SQL__BLOB,
 			"letterenc" => SQL__BLOB,
 			"lettertext" => SQL__TEXT,

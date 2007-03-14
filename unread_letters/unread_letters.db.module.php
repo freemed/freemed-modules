@@ -102,7 +102,7 @@ class UnreadLetters extends MaintenanceModule {
 			}
                 }
 		$query = "SELECT * FROM lettersrepository ".
-			"WHERE letterfrom='".addslashes($this_user->getPhysician())."' ".
+			"WHERE letterfrom='".addslashes($this_user->getPhysician())."' AND lettercorrect='' ".
                         freemed::itemlist_conditions(false)." ".
                         ( $condition ? 'AND '.$condition : '' )." ".
                         "ORDER BY letterdt";
@@ -114,7 +114,8 @@ class UnreadLetters extends MaintenanceModule {
                         array (
                                 __("Date")        => "letterdt",
 				__("Patient")     => "letterpatient",
-				" "               => "letterpatient"
+				" "               => "letterpatient",
+				__("Subject")     => "lettersubject"
                         ), // array
                         array (
                                 "",
