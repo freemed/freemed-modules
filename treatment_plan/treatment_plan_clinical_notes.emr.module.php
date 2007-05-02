@@ -444,6 +444,7 @@ class TreatmentPlanClinicalNotes extends EMRModule {
 					'procdiag4' => $_REQUEST['tpcnotesdiag4'],
 					'procbalorig' => $charges,
 					'procbalcurrent' => $charges,
+					'proccharges' => $charges,
 					'procbillable' => 0,
 					'procbilled' => 0,
 					'procamtpaid' => 0
