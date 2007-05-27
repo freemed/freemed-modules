@@ -1,0 +1,75 @@
+<?xml version="1.0"?>
+<!--
+
+  $Id$
+ 
+  Authors:
+       Jeff Buchbinder <jeff@freemedsoftware.org>
+ 
+  FreeMED Electronic Medical Record and Practice Management System
+  Copyright (C) 1999-2007 FreeMED Software Foundation
+ 
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation; either version 2 of the License, or
+  (at your option) any later version.
+ 
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+ 
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+-->
+<freemedpackage>
+	<information>
+		<name>Food Assistance</name>
+		<author>Jeff Buchbinder</author>
+		<version>0.1</version>
+		<description>FQHC emergency food assistance program support modules.</description>
+		<minimumversion>0.9.0</minimumversion>
+	</information>
+	<install>
+		<directory>
+			<destination>modules/food_assistance/</destination>
+		</directory>
+	<!-- ----- Modules ----- -->
+		<file>
+			<source>food_assistance_person.db.module.php</source>
+			<destination>modules/food_assistance/</destination>
+		</file>
+		<file>
+			<source>food_assistance_dispense.db.module.php</source>
+			<destination>modules/food_assistance/</destination>
+		</file>
+		<file>
+			<source>food_assistance_item.db.module.php</source>
+			<destination>modules/food_assistance/</destination>
+		</file>
+		<file>
+			<source>food_assistance_inventory.db.module.php</source>
+			<destination>modules/food_assistance/</destination>
+		</file>
+	<!-- ----- MySQL Schema Files ----- -->
+		<file>
+			<source>foodassistanceperson.sql</source>
+			<destination>data/schema/mysql/</destination>
+		</file>
+		<file>
+			<source>foodassistancedispense.sql</source>
+			<destination>data/schema/mysql/</destination>
+		</file>
+		<file>
+			<source>foodassistanceinventory.sql</source>
+			<destination>data/schema/mysql/</destination>
+		</file>
+		<file>
+			<source>foodassistanceitem.sql</source>
+			<destination>data/schema/mysql/</destination>
+		</file>
+	<!-- ----- User Interface ----- -->
+	</install>
+</freemedpackage>
