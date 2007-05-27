@@ -70,6 +70,11 @@
 			<source>foodassistanceitem.sql</source>
 			<destination>data/schema/mysql/</destination>
 		</file>
+	<!-- ----- User Interface Hooks ----- -->
+		<file>
+			<source>org.freemedsoftware.hook.task.patient.tpl</source>
+			<destination>ui/dojo/view/</destination>
+		</file>
 	<!-- ----- User Interface ----- -->
 	</install>
 </freemedpackage>
