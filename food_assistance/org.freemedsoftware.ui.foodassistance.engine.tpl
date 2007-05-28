@@ -23,8 +23,20 @@
  // Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 *}-->
 
-	<div class="paddedIcon" align="center" onClick="freemedLoad('<!--{$controller}-->/org.freemedsoftware.ui.foodassistance.engine');">
-		<img src="<!--{$htdocs}-->/images/food_assistance/bread.png" height="64" width="64" border="0" /><br/>
-		<!--{t}-->Food Assistance<!--{/t}-->
-	</div>
+<h2><!--{t}-->Food Assistance<!--{/t}--></h2>
 
+<table border="0" cellpadding="5" cellspacing="0">
+
+	<tr>
+		<td><a class="clickable" onClick="freemedLoad('org.freemedsoftware.ui.foodassistance.dispense');"><!--{t}-->Dispense<!--{/t}--></a></td>
+		<td><!--{t}-->Console for dispensing food items.<!--{/t}--></td>
+	</tr>
+
+	<!--
+	<tr>
+		<td><a class="clickable" onClick="freemedLoad('org.freemedsoftware.ui.foodassistance.');"><!--{t}--><!--{/t}--></a></td>
+		<td><!--{t}--><!--{/t}--></td>
+	</tr>
+	-->
+
+</table>

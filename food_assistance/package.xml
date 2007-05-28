@@ -36,6 +36,14 @@
 		<directory>
 			<destination>modules/food_assistance/</destination>
 		</directory>
+		<directory>
+			<destination>ui/dojo/htdocs/icons/food_assistance/</destination>
+		</directory>
+	<!-- ----- Images / Icons ----- -->
+		<file>
+			<source>bread.png</source>
+			<destination>ui/dojo/htdocs/icons/food_assistance/</destination>
+		</file>
 	<!-- ----- Modules ----- -->
 		<file>
 			<source>food_assistance_person.db.module.php</source>
@@ -76,5 +84,9 @@
 			<destination>ui/dojo/view/</destination>
 		</file>
 	<!-- ----- User Interface ----- -->
+		<file>
+			<source>org.freemedsoftware.ui.foodassistance.engine.tpl</source>
+			<destination>ui/dojo/view/</destination>
+		</file>
 	</install>
 </freemedpackage>
