@@ -41,7 +41,7 @@
 		</directory>
 	<!-- ----- Images / Icons ----- -->
 		<file>
-			<source>bread.png</source>
+			<source>images/soup_line.64x64.png</source>
 			<destination>ui/dojo/htdocs/icons/food_assistance/</destination>
 		</file>
 	<!-- ----- Modules ----- -->

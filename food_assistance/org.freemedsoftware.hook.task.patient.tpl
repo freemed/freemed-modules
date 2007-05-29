@@ -24,7 +24,7 @@
 *}-->
 
 	<div class="paddedIcon" align="center" onClick="freemedLoad('<!--{$controller}-->/org.freemedsoftware.ui.foodassistance.engine');">
-		<img src="<!--{$htdocs}-->/images/food_assistance/bread.png" height="64" width="64" border="0" /><br/>
+		<img src="<!--{$htdocs}-->/images/food_assistance/soup_line.64x64.png" height="64" width="64" border="0" /><br/>
 		<!--{t}-->Food Assistance<!--{/t}-->
 	</div>
 
