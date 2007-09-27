@@ -48,6 +48,7 @@ class Dose extends EMRModule {
 			'dosepreparedunits' => SQL__INT_UNSIGNED(0),
 			'doseunits' => SQL__CHAR(10),
 			'dosecomment' => SQL__VARCHAR(250),
+			'dosebottleid'=> SQL__INT_UNSIGNED(0),
 			'id' => SQL__SERIAL
 		);
 
@@ -63,6 +64,7 @@ class Dose extends EMRModule {
 			'dosemedicationdispensed',
 			'dosepouredunits',
 			'dosepreparedunits',
+			'dosebottleid',
 			'doseunits',
 			'dosecomment'
 		);
@@ -80,6 +82,10 @@ class Dose extends EMRModule {
 		$this->summary_options |= SUMMARY_VIEW | SUMMARY_PRINT | SUMMARY_MODIFY;
 		$this->summary_order_by = 'id';
 
+		$this->_SetHandler('DosingFunctions', 'addform');
+		$this->_SetMetaInformation('DosingFunctionName', __("Dispense Dose"));
+		$this->_SetMetaInformation('DosingFunctionDescription', __("Wizard for complete dosing procedure.") );
+
 		$this->EMRModule();
 	} // end constructor Dose
 
@@ -93,21 +99,21 @@ class Dose extends EMRModule {
 				var comment = document.getElementById('dosecomment').value;
 				var poured = document.getElementById('dosepouredunits').value;
 				var prepared = document.getElementById('dosepreparedunits').value;
-
 				// A sanity clause?
 				if ( comment.length < 3 ) {
 					alert('You must specify a reason for the dose failing.');
 					return false;
 				}
-
 				// Avoid duplicate clicks
+				alert(id + '##' + poured + '##' + prepared + '##' + comment);				
 				document.getElementById('mistakeButton').disabled = true;
-
 				// XmlHttpRequest send
+
 				x_module_html('dose', 'ajax_recordMistake', id + '##' + poured + '##' + prepared + '##' + comment, updateRecordMistake);
 			}
 			function updateRecordMistake ( value ) {
 				// Kick to another window
+				
 				window.location = '".( $_REQUEST['return'] == 'manage' ? "manage.php?id=".$_REQUEST['patient'] : "module_loader.php?module=".get_class($this)."&patient=".$_REQUEST['patient'] )."';
 			}
 			</script>
@@ -131,22 +137,38 @@ class Dose extends EMRModule {
 				<td><input type=\"text\" name=\"dosecomment\" id=\"dosecomment\" /></td>
 			</tr>
 			<tr>
-				<td colspan=\"2\" align=\"center\"><input type=\"button\" id=\"mistakeButton\" value=\"Record Mistake\" onClick=\"recordMistake(); return true;\" />
+				<td colspan=\"2\" align=\"center\"><input type=\"button\" id=\"mistakeButton\" value=\"Record Mistake\" onClick=\"alert(123);recordMistake(); return true;\" />
 				<input type=\"button\" id=\"noMistakeButton\" value=\"Dosed Correctly\" onClick=\"window.location = '".( $_REQUEST['return'] == 'manage' ? "manage.php?id=".$_REQUEST['patient'] : "module_loader.php?module=".get_class($this)."&patient=".$_REQUEST['patient'] )."'; return true;\" /></td>
 			</tr>
 			</table>
 		";
 	}
 	function mod ( ) { }
+	
 	function del ( ) { }
 
 	function addform ( ) {
-		$q = $GLOBALS['sql']->fetch_array($GLOBALS['sql']->query("SELECT id FROM doseplan WHERE doseplanpatient='".addslashes($_REQUEST['patient'])."' AND doseplanactive=1 ORDER BY id DESC LIMIT 1"));
+                ob_start();
+                include_once ('dosing_wizard.php');
+                $GLOBALS['display_buffer'] .= ob_get_contents();
+                ob_end_clean();
+		return true;
+
+		//---------------------------------------------- old is below ----------------
+
+
+//		$q = $GLOBALS['sql']->fetch_array($GLOBALS['sql']->query("SELECT id FROM doseplan WHERE doseplanpatient='".addslashes($_REQUEST['patient'])."' AND doseplanactive=1 ORDER BY id DESC LIMIT 1"));
+//		print "SELECT id FROM doseplan WHERE doseplanpatient='".addslashes($_REQUEST['patient'])."' AND doseplanactive=1 AND doseplaneffectivedate <= NOW() ORDER BY doseplanstartdate LIMIT 1";
+		$q = $GLOBALS['sql']->fetch_array($GLOBALS['sql']->query("SELECT id FROM doseplan WHERE doseplanpatient='".addslashes($_REQUEST['patient'])."' AND doseplanactive=1 AND doseplanstartdate <= NOW() ORDER BY doseplanstartdate  DESC LIMIT 1"));
 		syslog(LOG_INFO, "dose last doseplan = ".$q['id']);
 		$_REQUEST['doseplanid'] = $GLOBALS['doseplanid'] = $doseplanid = $q['id'];
 		$_REQUEST['doseassigneddate'] = $GLOBALS['doseassigneddate'] = date ('Y-m-d');
+/*
+		var_dump(module_function( $doseplanid  )."<input type=\"hidden\" id=\"doseplanid\" value=\"".$doseplanid."\" />");
+		exit;
+*/
 
-		// Figure out dosing station based on id
+		// Figure out dosing station based on idf
 		$st = $GLOBALS['sql']->fetch_array($GLOBALS['sql']->query( "SELECT id FROM dosingstation WHERE dsurl LIKE '%".addslashes( $_SERVER['REMOTE_ADDR'] )."%' LIMIT 1" ));
 		if ($st['id'] > 0) { $_REQUEST['dosestation'] = $GLOBALS['dosestation'] = $st['id']; }
 
@@ -174,13 +196,19 @@ class Dose extends EMRModule {
 			break; // 0 = no hold
 		}
 
+		// Load saved session values, if they exist
+		global $dosestation; $dosestation = $_SESSION[ 'dosing' ][ 'station'  ];
+		global $txtLotNo;    $txtLotNo    = $_SESSION[ 'dosing' ][ 'txtLotNo' ];
+
 		$GLOBALS['display_buffer'] .= 
 			"<center><table border=\"0\"><tr><td valign=\"top\">\n".
 			html_form::form_table(array (
 			__("Hold Status (by patient)") => $hold_text,
-			__("Dosing Plan") => module_function( 'doseplan', 'to_text', array ( $doseplanid ) )."<input type=\"hidden\" id=\"doseplanid\" value=\"".$doseplanid."\" />",
+			__("Dosing Plan") => module_function( 'doseplan', 'to_text', array ( $doseplanid ) )." <input type=\"hidden\" id=\"doseplanid\" value=\"".$doseplanid."\" />",
 			__("Dosing Station") => module_function ('dosingstation', 'widget', array ( 'dosestation' ) ),
 			__("Assigned Date") => fm_date_entry ( 'doseassigneddate' ),
+			__("Select Lot No") => module_function( 'LotReceipt', 'getLotNos', array ( "txtLotNo" ) ),
+			__("Select Bottle No") => "<div id='idBtlNo'> </div>" ,			
 		))."<td>".
 			"<center><div style=\"border: 1px solid #000000; width: 300px;\">\n".
 			"<div align=\"center\">\n".
@@ -192,8 +220,20 @@ class Dose extends EMRModule {
 			)." Show Dose Plan </div>
 			<div align=\"center\" id=\"dosePlanDiv\"></div>
 			</div></center>
-			</td></tr></table></center>\n";
-
+			</td></tr></table>
+			<script>
+			function getbtlno(){
+				x_module_html('lotreceipt', 'getAjxBottleNos', document.getElementById('txtLotNo').value, test);
+			}
+			function test( value ){
+				document.getElementById('idBtlNo').innerHTML = value;
+			}
+			</script>
+			</center>\n";
+			
+//		$blRet=	$GLOBALS['sql']->fetch_array($GLOBALS['sql']->query("SELECT doseplantakehomesched FROM doseplan WHERE id = ".$doseplanid." AND doseplanactive=1 ORDER BY doseplanstartdate LIMIT 1"));
+		$blRet=	$GLOBALS['sql']->fetch_array($GLOBALS['sql']->query("SELECT doseplantakehomecountgiven FROM doseplan WHERE id = ".$doseplanid." AND doseplanactive=1 ORDER BY doseplanstartdate LIMIT 1"));
+	 	
 		$GLOBALS['display_buffer'] .= "
 			<script language=\"javascript\">
 
@@ -261,9 +301,11 @@ class Dose extends EMRModule {
 				var dt = document.getElementById('doseassigneddate_cal').value;
 				var units = document.getElementById('doseunits').value;
 				var station = document.getElementById('dosestation').value;
-				x_module_html('".get_class($this)."', 'dispenseDose', '".addslashes($_REQUEST['patient'])."' + ',' + dt + ',' + plan + ',' + units + ',' + station, dispenseDoseAction);
+				var btlid = document.getElementById('btlno').value;
+				x_module_html('".get_class($this)."', 'dispenseDose', '".addslashes($_REQUEST['patient'])."' + ',' + dt + ',' + plan + ',' + units + ',' + station + ',$txtLotNo,' + btlid, dispenseDoseAction);
 			}
 			function dispenseDoseAction ( value ) {
+				
 				if ( value == -99 ) {
 					document.getElementById('dispenseButton').disabled = false;
 					document.getElementById('message').innerHTML = 'Split dosing has been attempted with a non-valid value.';
@@ -302,7 +344,7 @@ class Dose extends EMRModule {
 			<tr>
 				<td>Bottles Given / Returned</td>
 				<td>
-					<input type=\"text\" name=\"doseplantakehomecountgiven\" id=\"doseplantakehomecountgiven\" value=\"0\" /> <b>/</b>
+					<input type=\"text\" name=\"doseplantakehomecountgiven\" id=\"doseplantakehomecountgiven\" value=\" ".$blRet[0]." \" /> <b>/</b>
 					<input type=\"text\" name=\"doseplantakehomecountreturned\" id=\"doseplantakehomecountreturned\" value=\"0\" />
 					<input type=\"button\" id=\"bottlesButton\" value=\"Record\" onClick=\"recordBottles();\" />
 				</td>
@@ -327,7 +369,7 @@ class Dose extends EMRModule {
 				<td><input type=\"checkbox\" name=\"pouragain\" id=\"pouragain\" value=\"1\" /></td>
 			</tr>
 			<tr>
-				<td colspan=\"2\" align=\"center\"><input type=\"button\" id=\"mistakeButton\" value=\"Record Mistake\" onClick=\"recordMistake(); return true;\" />
+				<td colspan=\"2\" align=\"center\"><input type=\"button\" id=\"mistakeButton\" value=\"Record Mistake\" onClick=\"alert(123);recordMistake(); return true;\" />
 				<input type=\"button\" id=\"doseAnotherButton\" value=\"Another Dose\" onClick=\"doseAnother(); return true;\" />
 				<input type=\"button\" id=\"noMistakeButton\" value=\"Dosed Correctly\" onClick=\"window.location = '".( $_REQUEST['return'] == 'manage' ? "manage.php?id=".$_REQUEST['patient'] : "module_loader.php?module=".get_class($this)."&patient=".$_REQUEST['patient'] )."'; return true;\" /></td>
 			</tr>
@@ -366,6 +408,7 @@ class Dose extends EMRModule {
 				var comment = document.getElementById('dosecomment').value;
 				var poured = document.getElementById('dosepouredunits').value;
 				var prepared = document.getElementById('dosepreparedunits').value;
+				var btlid = document.getElementById('btlno').value;
 
 				// A sanity clause?
 				if ( comment.length < 3 ) {
@@ -375,12 +418,13 @@ class Dose extends EMRModule {
 
 				// Avoid duplicate clicks
 				document.getElementById('mistakeButton').disabled = true;
-
 				// XmlHttpRequest send
-				x_module_html('dose', 'ajax_recordMistake', id + '##' + poured + '##' + prepared + '##' + comment, updateRecordMistake);
+				x_module_html('dose', 'ajax_recordMistake', id + '##' + poured + '##' + prepared + '##' + comment + '##' + btlid, updateRecordMistake);
 			}
+			
 			function updateRecordMistake ( value ) {
 				var pouragain = document.getElementById('pouragain').checked;
+				
 				if ( pouragain ) {
 					// Enable dispense button, etc
 					document.getElementById('dispenseButton').disabled = false;
@@ -388,9 +432,10 @@ class Dose extends EMRModule {
 					document.getElementById('stageThree').style.display = 'none';
 					document.getElementById('message').innerHTML = '';
 					document.getElementById('message').style.backgroundColor = '#cccccc';
+					document.getElementById('mistakeButton').disabled = false;					
 				} else {
 					// Kick to another window
-					window.location = '".( $_REQUEST['return'] == 'manage' ? "manage.php?id=".$_REQUEST['patient'] : "module_loader.php?module=".get_class($this)."&patient=".$_REQUEST['patient'] )."';
+					//window.location = '".( $_REQUEST['return'] == 'manage' ? "manage.php?id=".$_REQUEST['patient'] : "module_loader.php?module=".get_class($this)."&patient=".$_REQUEST['patient'] )."';
 				}
 			}
 			</script>
@@ -416,11 +461,16 @@ class Dose extends EMRModule {
 		);
 	} // end method view
 
-	//function dispenseDose ( $patient, $doseplan, $units, $station ) {
+	//function dispenseDose ( $patient, $doseplan, $units, $station, $txtLotNo, $btlid ) {
 	function dispenseDose ( $blob ) {
-		list ( $patient, $date, $doseplan, $units, $station ) = explode ( ',', $blob );
+		list ( $patient, $date, $doseplan, $units, $station, $txtLotNo, $btlid ) = explode ( ',', $blob );
 		syslog(LOG_INFO, "dispenseDose| blob = $blob");
 		syslog(LOG_INFO, "dispenseDose| called with $patient, $date, $doseplan, $units, $station");
+
+		// Store session data
+		$_SESSION[ 'dosing' ][ 'station'  ] = $station;
+		$_SESSION[ 'dosing' ][ 'bottleId' ] = $btlid;
+		$_SESSION[ 'dosing' ][ 'txtLotNo' ] = $txtLotNo;
 
 		// Check for invalid split dosing amounts
 		$plan = freemed::get_link_rec($doseplan, 'doseplan');
@@ -437,7 +487,6 @@ class Dose extends EMRModule {
 				return -99;
 			}
 		}
-
 		$pwd = PHYSICAL_LOCATION;
 		$cmd = $pwd.'/scripts/dosing_frontend '.escapeshellarg($patient).' '.escapeshellarg($units).' '.escapeshellarg($station);
 		syslog(LOG_INFO, "dispenseDose| cmd = $cmd");
@@ -456,6 +505,7 @@ class Dose extends EMRModule {
 			'dosegivenuser' => $GLOBALS['this_user']->user_number,
 			'dosestation' => $station,
 			'dosemedicationtype' => $dp['doseplantype'],
+			'dosebottleid' => $btlid,
 			//'dosemedicationdispensed',
 			//'dosepouredunits',
 			//'dosepreparedunits',
@@ -470,6 +520,12 @@ class Dose extends EMRModule {
 			syslog(LOG_INFO, "dispenseDose| q = $q");
 			$res = $GLOBALS['sql']->query ( $q );
 			$id = $GLOBALS['sql']->last_record( $res, $this->table_name );
+			$x = $this->sendCommandToPump( $station, str_pad($units, 3 , "0",STR_PAD_LEFT) );
+			// print a label ...
+			$patientObject = CreateObject('_FreeMED.Patient', $patient);
+			$y = $this->printLabel( $station, array(
+				'patient' => $patientObject->to_text()
+			));
 			return $id;
 		} elseif ($code < 100) {
 			// dose codes under 100 indicate no dose was given
@@ -516,6 +572,34 @@ class Dose extends EMRModule {
 		return ( $already['already'] > 0 ? "<span style=\"color: #ff0000;\">ALREADY DOSED</span>" : "<b>Ready for Dosing</b>" );
 	} // end ajax_alreadyDosed
 
+	function printLabel( $pump, $args ) {
+		extract( $args );
+		$output = $this->sshWrapper( $pump, "/home/freemed/generate_label.pl -p ".escapeshellarg($patient)." -P ".escapeshellarg($provider)." -d ".escapeshellarg($dosage)." -e ".escapeshellarg($expires) );
+		return $output;
+	} // end printLabel
+
+	function sendCommandToPump( $pump, $command ) {
+		$output = $this->_sshWrapper( $pump, "/home/freemed/remote_test.pl ".$command );
+		return $output;
+	} // end sendCommandToPump
+
+	function _sshWrapper ( $pump, $command ) {
+		$station = freemed::get_link_rec( $pump, 'dosingstation' );
+
+		// Write identity
+		$identityFile = tempnam('/tmp', 'ssh-identity');
+		file_put_contents( $identityFile, $station['sshkey'] );
+
+		$cmd = "ssh -i " . escapeshellarg( $identityFile ) . " -o StrictHostKeyChecking=no -u freemed " . escapeshellarg( $station['dsurl']  ) . " " . $command;
+		syslog( LOG_DEBUG, "_sshWrapper( $pump )[in] : ${cmd}" );
+		$output = shell_exec( $cmd );
+		syslog( LOG_DEBUG, "_sshWrapper( $pump )[out] : ${output}" );
+
+		unlink( $identityFile );
+
+		return $output;
+	} // end _sshWrapper
+
 	function ajax_recordBottles ( $blob ) {
 		list ( $id, $given, $returned ) = explode ( '##', $blob );
 		$q = $GLOBALS['sql']->update_query(
@@ -529,22 +613,66 @@ class Dose extends EMRModule {
 		return $res ? '1' : '';
 	} // end ajax_recordBottles
 
+	function clearPump ( $dosingstation ) {
+		$output = $this->sendCommandToPump( $dosingstation, 'v40002' );
+		return true;
+	}
+
+	function primePump ( $dosingstation ) {
+		$output = $this->sendCommandToPump( $dosingstation, 'v999' );
+		return true;
+	}
+
+	function closePumpClear ( $dosingstation ) {
+		$output = $this->sendCommandToPump( $dosingstation, 'v9992' );
+		return true;
+	}
+
+	function closePumpFlush ( $dosingstation ) {
+		$output = $this->sendCommandToPump( $dosingstation, 'v9993' );
+		return true;
+	}
+
 	function ajax_recordMistake ( $blob ) {
-		list ( $id, $poured, $prepared, $comment ) = explode ( '##', $blob );
+		//print $blob;
+		list ( $id, $poured, $prepared, $comment, $btlid ) = explode ( '##', $blob );
 		$q = $GLOBALS['sql']->update_query(
 			$this->table_name,
 			array (
 				'dosegiven' => 2,
 				'dosepreparedunits' => $prepared,
 				'dosepouredunits' => $poured,
-				'dosecomment' => $comment
+				'dosecomment' => $comment,
+				'dosebottleid' => $btlid
 			), array ( 'id' => $id )
 		);
-		$GLOBALS['sql']->query( $q );
+		return $GLOBALS['sql']->query( $q );
 	} // end ajax_recordMistake
+	
+	function ajax_bottle_qty($btlno){
+		$q = $GLOBALS['sql']->fetch_array($GLOBALS['sql']->query("SELECT sum(doseunits) QTY FROM ".$this->table_name." WHERE dosebottleid = $btlno"));
+		return $q['QTY'];
+		
+	}
+
+	// Method: SaveSession
+	//
+	//	Save dosing information into the session.
+	//
+	// Parameters:
+	//
+	//	$hash - CSV of dosing station, lot no, bottle idA
+	//
+	// Returns:
+	//
+	//	Boolean, success.
+	//
+	function SaveSession ( $hash ) {
+		list ( $_SESSION['dosing']['dosingstation'], $_SESSION['dosing']['txtLotNo'], $_SESSION['dosing']['btlno'] ) = explode( ',', $hash );
+		return true;
+	}
 
 } // end class Dose
 
 register_module("Dose");
-
 ?>
