@@ -29,11 +29,16 @@ $config = Config::Tiny->read( 'label.ini' );
 #	Get parameters
 use Getopt::Std;
 my %o;
-getopt( 'pdPe12', \%o );
+getopt( 'pdPeDl', \%o );
 
 if ( ! $o{p} ) {
-	print "$0 -p (patient name) -P (doctor name) -e (expires) -d (dosage)\n";
-	print "   [-1 (first pat address line) -2 (second pat address line)]\n";
+	print "$0 (options .... ) \n";
+	print "\t-p (patient name)\n";
+	print "\t-P (doctor name)\n";
+	print "\t-e (expires)\n";
+	print "\t-d (dosage)\n";
+	print "\t-D (dosage date)\n";
+	print "\t-l (lot number)\n";
 	exit 0;
 }
 
@@ -61,12 +66,9 @@ $label .= "${esc}H0000${esc}V0035${esc}FW02H0".${l};	# 2 width horizontal line
 $label .= "${esc}H0030${esc}V0040${esc}XM" . $o{p};
 $label .= "${esc}H0400${esc}V0070${esc}XM" . $o{d} . " mg";
 
-#	Patient address
-if ( $o{1} ) {
-	print "adding addr lines\n";
-	$label .= "${esc}H0050${esc}V0070${esc}XS" . $o{1};
-	$label .= "${esc}H0050${esc}V0088${esc}XS" . $o{2};
-}
+#	Dosage date and lot information
+$label .= "${esc}H0050${esc}V0070${esc}XS" . "Take on : " . $o{D};
+$label .= "${esc}H0050${esc}V0088${esc}XS" . "Lot     : " . $o{l};
 
 #	Doctor and expiration
 $label .= "${esc}H0000${esc}V0115${esc}FW01H0".${l};	# 1 width horizontal line
