@@ -98,21 +98,9 @@ class DosePlan extends EMRModule {
 		$this->summary_options |= SUMMARY_VIEW | SUMMARY_PRINT;
 		$this->summary_order_by = 'id';
 
-		$this->_SetHandler('DosingFunctions', 'transferForm');
-		$this->_SetMetaInformation('DosingFunctionName', __("Change Bottle"));
-		$this->_SetMetaInformation('DosingFunctionDescription', __("Change bottle for dosing station.") );
-
 		// Set associations
 		$this->EMRModule();
 	} // end constructor DosePlan
-
-	function transferForm ( ) {
-                ob_start();
-                include_once ('change_bottle.php');
-                $GLOBALS['display_buffer'] .= ob_get_contents();
-                ob_end_clean();
-		return true;
-	}
 
 	function modform ( ) { }
 	function mod ( ) { }
@@ -284,21 +272,19 @@ class DosePlan extends EMRModule {
 					document.getElementById(\'takehomecontainer\').style.display = \'none\';
 				}
 			}
-			function splitDose ( b ) {
-				document.getElementById("splitDoseDiv").style.display = b ? "block" : "none";
-				if (b == 1){
-				document.getElementById("takehomes").disabled = true;
-				} else {
-				  document.getElementById("takehomes").disabled = false;
+				function splitDose ( b ) {
+					document.getElementById("splitDoseDiv").style.display = b ? "block" : "none";
+					if (b == 1){
+  					document.getElementById("takehomes").disabled = true;
+					} else {
+					  document.getElementById("takehomes").disabled = false;
+					}
 				}
-			}
+			
 			</script>
 			',
 			))
 		);
-		foreach ($_POST['takehomesched'] as $key => $val){
-			$tkhome .= $key . "#";
-		}
 		
 		if (!count($_REQUEST['doseplan']))
 		switch ($_REQUEST['doseplanincrementationtype']) {
@@ -346,6 +332,9 @@ class DosePlan extends EMRModule {
 			case 'none': default:
 			break;
 		} // end inctype
+		foreach ($_POST['takehomesched'] as $key => $val){
+			$tkhome .= $key . "#";
+		}
 		switch ($_REQUEST['doseplanincrementationtype']) {
 			case 'administrative':
 			case 'behavioral':
@@ -375,19 +364,11 @@ class DosePlan extends EMRModule {
 			case 'none': default:
 			break;
 		}
-		/*
 		if ($tkhome!= "") { $tkhome="" } ;
 		foreach ($_POST['takehomesched'] as $key => $val){
 			$tkhome .= $key . "#";
 		
-		}*/
-		if (is_array($_POST['takehomesched'])){
-			$takegiven = count($_POST['takehomesched']);
-		} else {
-			$takegiven = count(split("#",$_POST['takehomesched']));
-			$tkhome = $_POST["takehomesched"];
 		}
-		
 		$w->add_page (
 			__("Comments"),
 			array (
@@ -403,7 +384,7 @@ class DosePlan extends EMRModule {
 				" " => 
 				( $_REQUEST['doseplantype'] == 'exception' ? "
 				<div>Medication Pickup Date ".fm_date_entry("doseplanpickupdate")."</div>
-				<input type='hidden' value='".$tkhome."' name='takehomesched'> 
+				<input type='hidden' value='".$tkhome."' name='takehomesched'>
 				<div>Return Date ".fm_date_entry("doseplanpickupdate")."</div>
 				<div>Number of Doses Given ".html_form::text_widget("doseplantakehomecountgiven")."</div>
 				" : "" )
@@ -487,9 +468,7 @@ class DosePlan extends EMRModule {
 	} // end method addform
 
 	function view ( ) {
-		global $sql; 
-		global $display_buffer;
-		global $patient;
+		global $sql; global $display_buffer; global $patient;
 		$display_buffer .= freemed_display_itemlist (
 			$sql->query("SELECT * FROM ".$this->table_name." ".
 				"WHERE ".$this->patient_field."='".addslashes($patient)."' ".
@@ -502,7 +481,8 @@ class DosePlan extends EMRModule {
 				__("Start")    =>	"doseplanstartdate",
 				__("Length")    =>	"doseplanlength",
 				__("Comment") =>	"doseplancomment"
-			), NULL, NULL, NULL, NULL, ITEMLIST_VIEW
+			), NULL, NULL, NULL, NULL,
+                        ITEMLIST_VIEW
 		);
 	} // end method view
 
@@ -521,11 +501,6 @@ class DosePlan extends EMRModule {
 		}
 		return $dose;
 	} // end method figureInitialDosePlan
-
-	function getDosePlanForPatient ( $patient ) {
-		$q = $GLOBALS['sql']->fetch_array($GLOBALS['sql']->query("SELECT id, CONCAT(doseplandose, doseplanunits) AS planName FROM doseplan WHERE doseplanpatient='".addslashes($patient)."' AND doseplanactive=1 AND doseplanstartdate <= NOW() ORDER BY doseplanstartdate  DESC LIMIT 1"));
-		return array( 'id' => $q['id'], 'name' => $q['planName'] );
-	} // end getDosePlanForPatient
 
 	function increment_date ( $old, $days = 1 ) {
 		return date( 'Y-m-d', $this->dateToStamp($old) + (60 * 60 * 24 * $days) );
@@ -554,6 +529,7 @@ class DosePlan extends EMRModule {
 	//
 	function ajax_display_dose_plan ( $doseplanid ) {
 		if (!$doseplanid) { return 'NO DOSE PLAN SPECIFIED'; }
+
 		$dp = freemed::get_link_rec( $doseplanid, $this->table_name );
 		if ($dp['doseplantype'] == 'regular-methadone') {
 			// Handle regular and/or split dosing
@@ -564,16 +540,10 @@ class DosePlan extends EMRModule {
 			$buffer .= "<table border=\"0\" cellspacing=\"0\" cellpadding=\"3\">\n";
 			$buffer .= "<tr>\n\t<th>Date</th>\n\t<th>Dose</th>\n\t<th>Status</th>\n\t<th>Take Home</th>\n</tr>\n";
 			for ($i = 1;$i <=7;$i++){
-				$d = strtotime($dt);
-				$dtmdy = date("m/d/Y",mktime(0,0,0,date("m",$d),date("d",$d),date("Y",$d)));
 				$status = $this->doseStatus( $doseplanid, $dt );
 				$day = $arTkh[array_search(strtolower(date("D",strtotime($dt))),$arTkh)];
-				// Force no status if takehome + past
-				if ( $takehome and ( strtotime($dt) < mktime()-86400 ) ) {
-					$status = true;
-				}
 				$day = ($day == strtolower(date("D",strtotime($dt)))?",$day":"");
-				$buffer .= "<tr ".( !$status ? "onMouseOver=\"this.style.backgroundColor='#7777ff'; return true;\" onMouseOut=\"this.style.backgroundColor='transparent'; return true;\" onClick=\"if (document.getElementById('doseassigneddate_cal')) { document.getElementById('doseassigneddate_cal').value='${dt}'; }; try { dojo.widget.byId( 'doseassigneddate' ).inputNode.value = '${dtmdy}'; } catch (err) { } return true;\"" : "" )." >\n".
+				$buffer .= "<tr ".( !$status ? "onMouseOver=\"this.style.backgroundColor='#7777ff'; return true;\" onMouseOut=\"this.style.backgroundColor='transparent'; return true;\" onClick=\"if (document.getElementById('doseassigneddate_cal')) { document.getElementById('doseassigneddate_cal').value='${dt}'; } return true;\"" : "" )." >\n".
 				"\t<td>${dt}</td>\n".
 				"\t<td>${dose} ${dp['doseplanunits']}</td>\n".
 				"\t<td>".( $status ? "<span style=\"color: #ff0000;\">Dispensed</span>" : "" )."</td>\n". 
@@ -612,17 +582,9 @@ class DosePlan extends EMRModule {
 			
 			$day = $arTkh[array_search(strtolower(date("D",strtotime($dt))),$arTkh)];
 			$day = ($day == strtolower(date("D",strtotime($dt)))?",$day":"");
-			$d = explode( '-', $dt );
-			$dtmdy = date("m/d/Y",mktime(10,10,10,$d[1],$d[2],$d[0]));
-		
-			// Force no status if takehome + past
-			if ( $takehome and ( strtotime($dt) < mktime()-86400 ) ) {
-				$status = true;
-			}
 
 			// Add this
-			////$buffer .= "<tr ".( !$status ? "onMouseOver=\"this.style.backgroundColor='#7777ff'; return true;\" onMouseOut=\"this.style.backgroundColor='transparent'; return true;\" onClick=\"if (document.getElementById('doseassigneddate_cal')) { document.getElementById('doseassigneddate_cal').value='${dt}'; } return true;\"" : "" )." >\n".
-			$buffer .= "<tr ".( !$status ? "onMouseOver=\"this.style.backgroundColor='#7777ff'; return true;\" onMouseOut=\"this.style.backgroundColor='transparent'; return true;\" onClick=\"try { dojo.widget.byId( 'doseassigneddate' ).inputNode.value = '${dtmdy}'; } catch (err) { } return true;\"" : "" )." >\n".
+			$buffer .= "<tr ".( !$status ? "onMouseOver=\"this.style.backgroundColor='#7777ff'; return true;\" onMouseOut=\"this.style.backgroundColor='transparent'; return true;\" onClick=\"if (document.getElementById('doseassigneddate_cal')) { document.getElementById('doseassigneddate_cal').value='${dt}'; } return true;\"" : "" )." >\n".
 				"\t<td>${dt}</td>\n".
 				"\t<td>${dose} ${dp['doseplanunits']}</td>\n".
 				"\t<td>".( $status ? "<span style=\"color: #ff0000;\">Dispense</span>" : "" )."</td>\n".
@@ -682,7 +644,7 @@ class DosePlan extends EMRModule {
 		}
 		if ($plan['doseplantype'] != 'incremental-methadone' && $plan['doseplanstartdate'] == $date && !$plan['doseplansplit']) {
 			return $plan['doseplandose'];
-		}	
+		}
 		$doses = explode( ',', $plan['doseplanincrementationschedule'] );
 		// Avoid divide by 0, give initial date.
 		if ( $date == $plan['doseplanstartdate'] ) {

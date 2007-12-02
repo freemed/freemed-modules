@@ -29,10 +29,11 @@ freemed::module_cache();
 global $sql;
 
 // Load values from session if they exist
-global $dosingstation, $txtLotNo;
+global $dosingstation, $txtLotNo, $btlno;
 $dosingstation = $_SESSION['dosing']['dosingstation'];
 $txtLotNo = $_SESSION['dosing']['txtLotNo'];
 $btlno = $_SESSION['dosing']['btlno'];
+if ( $_REQUEST['patient'] ) { global $dosepatient; $dosepatient = $_REQUEST['patient']; }
 
 ?>
 
@@ -46,21 +47,11 @@ $btlno = $_SESSION['dosing']['btlno'];
 <script language="javascript" src="lib/dojo/dojo.js"></script>
 <script language="javascript">
 	dojo.require("dojo.io.*");
+	dojo.require("dojo.date");
 	dojo.require("dojo.widget.Dialog");
 	dojo.require("dojo.widget.DropdownDatePicker");
 	dojo.require("dojo.widget.Wizard");
 	dojo.require("dojo.widget.Tooltip");
-
-	function getBottleNumbers ( ) {
-			dojo.io.bind({
-				method: 'GET',
-				url: 'json-relay-0.8.x.php?module=lotreceipt&method=getAjaxBottleNos&param[]=' + document.getElementById( 'txtLotNo' ).value,
-				load: function( type, data, evt ) {
-					document.getElementById( 'idBtlNo' ).innerHTML = data;
-				},
-				mimetype: 'text/json'
-			});
-	}
 
 	var dw = {
 		dosePlan: 0,
@@ -71,14 +62,16 @@ $btlno = $_SESSION['dosing']['btlno'];
 		},
 		onFinished: function ( ) {
 			// Deal with dose same patient again
-			var again = document.getElementById( 'anotherDoseSamePatient' ).checked;
-			if ( again ) {
-				document.getElementById( 'anotherDoseSamePatient' ).checked = false;
+			var differentPatient = document.getElementById( 'anotherDoseDifferentPatient' ).checked;
+			if ( differentPatient ) {
+				document.getElementById( 'anotherDoseDifferentPatient' ).checked = false;
+				dw.updateSchedule( );
+				dojo.widget.byId( 'dosingContainer' ).onSelected( dojo.widget.byId( 'dosingPatientPane' ) );
+				dojo.widget.byId( 'dosingContainer' ).checkButtons( );
+			} else {
 				dw.updateSchedule( );
 				dojo.widget.byId( 'dosingContainer' ).onSelected( dojo.widget.byId( 'dosingCalculatePane' ) );
 				dojo.widget.byId( 'dosingContainer' ).checkButtons( );
-			} else {
-				dojo.widget.byId( 'dosingContainer' ).onSelected( dojo.widget.byId( 'dosingPatientPane' ) );
 				//history.go(-1); // go back from where you came ...
 			}
 		},
@@ -103,12 +96,11 @@ $btlno = $_SESSION['dosing']['btlno'];
 		},
 		onLoadPatient: function ( ) {
 			var pt = document.getElementById( 'dosepatient' ).value;
-			if ( parseInt( pt ) < 1 ) {
-				alert( 'You must select a patient!' );
-				return false;
+			if ( pt == "" || parseInt( pt ) < 1 ) {
+				return "You must select a patient!";
 			}
 
-			var exStatus = true;
+			var exStatus = false;
 
 			dojo.io.bind({
 				method: 'GET',
@@ -128,17 +120,16 @@ $btlno = $_SESSION['dosing']['btlno'];
 					switch ( data ) {
 						case 1:
 						document.getElementById( 'patientHoldStatus' ).innerHTML = 'SOFT HOLD';
-						exStatus = true;
+						exStatus = false;
 						break;
 
 						case 2:
-						alert('There is a hard hold on this patient');
-						exStatus = false;
+						exStatus = "There is a hard hold on this patient";
 						break;
 
 						case 0:
 						document.getElementById( 'patientHoldStatus' ).innerHTML = 'No holds.';
-						exStatus = true;
+						exStatus = false;
 						break;
 						
 					}
@@ -168,35 +159,68 @@ $btlno = $_SESSION['dosing']['btlno'];
 			document.getElementById( 'doseassigneddate_cal' ).value = val;
 		},
 		onCalculateDose: function ( ) {
-			if ( document.getElementById( 'doseassigneddate_cal' ).value,length < 8 ) {
-				// Skip back to calculate pane
-				//dojo.widget.byId( 'dosingContainer' ).onSelected( dojo.widget.byId( 'dosingCalculatePane' ) );
-				return false;
+			if ( document.getElementById( 'doseassigneddate_cal' ).value.length < 8 )
+				return "You must select a date.";
+			var assigned_date = dojo.date.fromIso8601Date(document.getElementById( 'doseassigneddate_cal' ).value);
+
+			// -1 for past, 0 for today, 1 for future
+			var comp = dojo.date.compare(assigned_date, new Date(), dojo.date.compareTypes.DATE);
+			// Can dose for up to today+30 days. Hard code for now.
+			var takeHomeEnd = dojo.date.add(new Date(),"day",30);
+			var comp2 = dojo.date.compare(assigned_date, takeHomeEnd, dojo.date.compareTypes.DATE);
+			if (comp < 0)
+				return "Cannot dose for a date in the past.";
+			if (comp > 0 && comp2 <= 0) { // have to see if it's take-home
+				var isTakeHome = false;
+				var dosehash = dw.dosePlan + ',' + document.getElementById( 'doseassigneddate_cal' ).value;
+				dojo.io.bind({
+					method: 'GET',
+					url: 'json-relay-0.8.x.php?module=doseplan&method=ajax_DoseTakeHome&param[]=' + dosehash,
+					load: function( type, data, evt ) {
+						if ( data ) {
+							isTakeHome = true;
+						} else {
+							isTakeHome = false;
+						}
+					},
+					sync: true,
+					mimetype: 'text/json'
+				});
+				if (! isTakeHome)
+					return "Can only dispense future doses for takehome doseplan.";
 			}
+			if (comp2 > 0)
+				return "Can only dispense take-home doses within the next 30 days.";
+
 			var dosehash = dw.dosePlan + ',' + document.getElementById( 'doseassigneddate_cal' ).value;
+			var returnVal = false;
 			dojo.io.bind({
 				method: 'GET',
 				url: 'json-relay-0.8.x.php?module=doseplan&method=ajax_DoseForDate&param[]=' + dosehash,
 				load: function( type, data, evt ) {
 					if ( data > 0 ) {
 						// All good, continue
-						dojo.byId( 'doseunits' ).value = data;
+						dojo.byId( 'doseunits' ).innerHTML = data;
 					} else {
-						alert('No dose is scheduled for the date selected.');
-						return false;
+						returnVal = "No dose is scheduled for the date selected.";
 					}
 				},
 				sync: true,
 				mimetype: 'text/json'
 			});
+			if (returnVal)
+				return returnVal;
 
 			// And make sure we check to see if it dosed properly
+			var iso_date = dojo.date.format(assigned_date, "%Y-%m-%d");
 			dojo.io.bind({
 				method: 'GET',
-				url: 'json-relay-0.8.x.php?module=dose&method=ajax_alreadyDosed&param[]=' + document.getElementById( 'dosepatient' ).value + ',' + document.getElementById( 'doseassigneddate_cal' ).value,
+				url: 'json-relay-0.8.x.php?module=dose&method=ajax_alreadyDosed&param[]=' + document.getElementById( 'dosepatient' ).value + ',' + iso_date,
 				load: function( type, data, evt ) {
 					if ( data.indexOf( 'ALREADY' ) != -1 ) {
-						alert('Already dispensed for that day');
+						// clear so we can check it later
+						dojo.byId( 'doseStatus' ).innerHTML = "";
+						returnVal = "Already dispensed all doses for date "+assigned_date+".";
 					} else {
 						// All good
 						dojo.byId( 'doseStatus' ).innerHTML = data;
@@ -205,16 +229,14 @@ $btlno = $_SESSION['dosing']['btlno'];
 				sync: true,
 				mimetype: 'text/json'
 			});
-			return true;
+			return returnVal;
 		},
 		onDispenseDose: function ( ) {
 			var plan = dw.dosePlan;
 			var dt = document.getElementById('doseassigneddate_cal').value;
-			var units = document.getElementById('doseunits').value;
+			var units = parseInt( document.getElementById('doseunits').innerHTML );
 			var station = document.getElementById('dosingstation').value;
-			var btlid = document.getElementById('btlno').value;
-			var txtLotNo = document.getElementById( 'txtLotNo' ).value;
-			var hash = document.getElementById('dosepatient').value + ',' + dt + ',' + plan + ',' + units + ',' + station + ',' + txtLotNo + ',' + btlid;
+			var hash = document.getElementById('dosepatient').value + ',' + dt + ',' + plan + ',' + units + ',' + station;
 
 			dojo.widget.byId( 'primeDialog' ).show();
 
@@ -273,21 +295,30 @@ $btlno = $_SESSION['dosing']['btlno'];
 		}
 	};
 
+	// These are here because a WizardPane's passFunction must be a
+	// globally-accesible function, rather than something like "dw.foo".
+	// Connecting the event via dojo.event.connect doesn't let it properly
+	// return an error message.
+	function pass_dosingPatientPane() {
+		return dw.onLoadPatient();
+	}
+	function pass_dosingCalculatePane() {
+		return dw.onCalculateDose();
+	}
+	function pass_dosingDosePane() {
+		return dw.onDispenseDose();
+	}
+
 	dojo.addOnLoad(function() {
 		dojo.event.connect( dojo.widget.byId( 'dosingContainer' ), 'cancelFunction', dw, 'onCancel' );
-		dojo.event.connect( dojo.widget.byId( 'doseassigneddate' ), 'onValueChanged', dw, 'updateDate' );
-		dojo.event.connect( dojo.widget.byId( 'dosingCalculatePane' ), 'passFunction', dw, 'onCalculateDose' );
-		dojo.event.connect( dojo.widget.byId( 'dosingPatientPane' ), 'passFunction', dw, 'onLoadPatient' );
-		dojo.event.connect( dojo.widget.byId( 'dosingDosePane' ), 'passFunction', dw, 'onDispenseDose' );
+		dojo.event.connect( dojo.widget.byId( 'doseassigneddate' ), 'onSetDate', dw, 'updateDate' );
 		dojo.event.connect( dojo.widget.byId( 'mistakeButton' ), 'onClick', dw, 'onRecordMistake' );
 		dojo.event.connect( dojo.widget.byId( 'dosingFinishedPane' ), 'doneFunction', dw, 'onFinished' );
 	});
 
 	dojo.addOnUnload(function() {
 		dojo.event.disconnect( dojo.widget.byId( 'dosingContainer' ), 'cancelFunction', dw, 'onCancel' );
-		dojo.event.disconnect( dojo.widget.byId( 'doseassigneddate' ), 'onValueChanged', dw, 'updateDate' );
-		dojo.event.disconnect( dojo.widget.byId( 'dosingCalculatePane' ), 'passFunction', dw, 'onCalculateDose' );
-		dojo.event.disconnect( dojo.widget.byId( 'dosingPatientPane' ), 'passFunction', dw, 'onLoadPatient' );
+		dojo.event.disconnect( dojo.widget.byId( 'doseassigneddate' ), 'onSetDate', dw, 'updateDate' );
 		dojo.event.disconnect( dojo.widget.byId( 'mistakeButton' ), 'onClick', dw, 'onRecordMistake' );
 		dojo.event.disconnect( dojo.widget.byId( 'dosingFinishedPane' ), 'doneFunction', dw, 'onFinished' );
 	});
@@ -301,8 +332,8 @@ $btlno = $_SESSION['dosing']['btlno'];
  nextButtonLabel="Next &gt; &gt;" previousButtonLabel="&lt; &lt; Previous"
  cancelButtonLabel="Cancel" doneButtonLabel="Done">
 
-	<div dojoType="WizardPane" label="Select Patient (2/7)" id="dosingPatientPane" canGoBack="false">
-		<h1>Select Patient (2/7)</h1>
+	<div dojoType="WizardPane" label="Select Patient (1/5)" id="dosingPatientPane" canGoBack="false" passFunction="pass_dosingPatientPane">
+		<h1>Select Patient (1/5)</h1>
 
 		<p><i>
 		Please select a patient.
@@ -319,29 +350,15 @@ $btlno = $_SESSION['dosing']['btlno'];
 
 			<tr>
 				<td align="right">Dosing Station</td>
-				<td align="left"><?php print module_function( 'DosingStation', 'widget', array ( 'dosingstation', "dsenabled = 1" ) ); ?></td>
-			</tr>
-
-			<tr>
-				<td align="right">Lot Number</td>
-				<td align="left"><?php print module_function( 'LotReceipt', 'getLotNosForWizard', array ( "txtLotNo" ) ); ?></td>
-			</tr>
-
-			<tr>
-				<td align="right">Bottle Number</td>
-				<td align="left"><div id="idBtlNo"><?php
-				if ( $_SESSION[ 'dosing' ][ 'btlno' ] ) {
-					print module_function( 'LotReceipt', 'getAjxBottleNos', array ( $txtLotNo ) );
-				}
-				?></div></td>
+				<td align="left"><?php print module_function( 'DosingStation', 'widget', array ( 'dosingstation', "dsenabled = 1 AND dsfacility='".addslashes($_SESSION['default_facility'])."' AND dsopen='open'" ) ); ?></td>
 			</tr>
 
 		</table>
 	</div>
 
-	<div dojoType="WizardPane" id="dosingCalculatePane" label="Schedule Dose (5/7)" canGoBack="true">
+	<div dojoType="WizardPane" id="dosingCalculatePane" label="Schedule Dose (2/5)" canGoBack="true" passFunction="pass_dosingCalculatePane">
 
-		<h1>Schedule Dose (5/7)</h1>
+		<h1>Schedule Dose (2/5)</h1>
 
 		<p>Patient Hold Status : <span id="patientHoldStatus"></span></p>
 
@@ -356,20 +373,21 @@ $btlno = $_SESSION['dosing']['btlno'];
 
 	</div>
 
-	<div dojoType="WizardPane" id="dosingDosePane" label="Calculate Dose (6/7)" canGoBack="false">
+	<div dojoType="WizardPane" id="dosingDosePane" label="Calculate Dose (3/5)" canGoBack="false" passFunction="pass_dosingDosePane">
 		
-		<h1>Calculate Dose (6/7)</h1>
+		<h1>Calculate Dose (3/5)</h1>
 
 		<p>Status : <span id="doseStatus"></span></p>
 
-		<p>Dose Amount : <input type="text" id="doseunits" /></p>
+		<p>Dose Amount : <span id="doseunits"></span></p>
+		<!-- <p>Dose Amount : <input type="text" id="doseunits" /></p> -->
 
 		<p>Please press the "Next" button to complete this dosing procedure.</p>
 
 	</div>
 
-	<div dojoType="WizardPane" id="dosingMistakePane" label="Mistake (7/7)" canGoBack="false">
-		<h1>Mistake (7/7)</h1>
+	<div dojoType="WizardPane" id="dosingMistakePane" label="Mistake (4/5)" canGoBack="false">
+		<h1>Mistake (4/5)</h1>
 
 		<p>
 		<i>If a dosing mistake was made, please complete this form to record the
@@ -402,11 +420,11 @@ $btlno = $_SESSION['dosing']['btlno'];
 
 	</div>
 
-	<div dojoType="WizardPane" id="dosingFinishedPane" label="Continue Dosing (7/7)" canGoBack="false">
-		<h1>Continue Dosing (7/7)</h1>
+	<div dojoType="WizardPane" id="dosingFinishedPane" label="Continue Dosing (5/5)" canGoBack="false">
+		<h1>Continue Dosing (5/5)</h1>
 
 		<p>
-		<input type="checkbox" id="anotherDoseSamePatient" value="1" /> <label for="anotherDoseSamePatient">Dose Again, Same Patient</label>
+		<input type="checkbox" id="anotherDoseDifferentPatient" value="1" /> <label for="anotherDoseDifferentPatient">Next Dose is for Different Patient</label>
 		</p>
 
 	</div>

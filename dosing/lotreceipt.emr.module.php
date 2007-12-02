@@ -45,6 +45,7 @@ class LotReceipt extends MaintenanceModule {
 			'lotrecuserid' => SQL__INT_UNSIGNED(0),
 			'lotrecbottleno' => SQL__VARCHAR(50),
 			'lotrecbottleqty' => SQL__INT_UNSIGNED(0),
+			'lotrecbottleused' => SQL__INT_UNSIGNED(0),
 			'lotrecmfgdate' => SQL__DATE,
 			'lotrecexpdate' => SQL__DATE,
 			'lotsupplrefno' => SQL__INT_UNSIGNED(0),
@@ -162,6 +163,7 @@ class LotReceipt extends MaintenanceModule {
 						'lotrecmfgdate' => $_POST['txtmanfdate1_'.$i] ,
 						'lotrecexpdate' => $_POST['txtexpdate1_'.$i],
 						'lotrecbottleqty' => $_POST['txtbottleqty_'.$i],
+						'lotrecbottleused' => 0,
 					);  // change $_POST['txtid20kk'] to $_POST['txt20k'] same ro 40 k by raju
 					$query = $GLOBALS['sql']->insert_query (
 						$this->table_name,
@@ -375,7 +377,9 @@ class LotReceipt extends MaintenanceModule {
 
 
 	function getLotNosForWizard( $selectName ) {
-		$q = $GLOBALS['sql']->query("SELECT  lotrecno, id FROM lotreg");
+		$loc = $_SESSION['default_facility'];
+		syslog(LOG_DEBUG, "SELECT  lotreg.lotrecno, lotreg.id FROM lotreg JOIN lotreceipt ON lotreceipt.lotrecno=lotreg.id WHERE lotrecsite='".addslashes($loc)."'");
+		$q = $GLOBALS['sql']->query("SELECT  lotreg.lotrecno, lotreg.id FROM lotreg JOIN lotreceipt ON lotreceipt.lotrecno=lotreg.id WHERE lotrecsite='".addslashes($loc)."'");
 		$ar[0] = "Please Select";
 		while ($lastr = $GLOBALS['sql']->fetch_array($q)) {
 			$key = $lastr["lotrecno"];

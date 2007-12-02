@@ -59,7 +59,28 @@ $btlno = $_SESSION['dosing']['btlno'];
 			//history.go(-1); // go back from where you came ...
 		},
 		onFinished: function ( ) {
-			//history.go(-1); // go back from where you came ...
+			var station = document.getElementById( 'dosingstation' ).value;
+                        var txtLotNo = document.getElementById( 'txtLotNo' ).value;
+                        var btlno = document.getElementById( 'btlno' ).value;
+                        var hash = station + ',' + txtLotNo + ',' + btlno + ',open';
+			// Set up blocker
+			dojo.widget.byId( 'settingDialog' ).show();
+			dojo.io.bind({
+				method: 'GET',
+				url: 'json-relay-0.8.x.php?module=dose&method=setPumpStatus&param[]=' + hash,
+				load: function( type, data, evt ) {
+					// Close blocker
+					dojo.widget.byId( 'settingDialog' ).hide();
+					if ( data ) {
+						// all good	
+					} else {
+						alert('Failed to set pump as open.');
+					}
+				},
+				mimetype: 'text/json',
+				sync: true
+			});
+			
 			window.location = 'dosing_functions.php';
 		},
 		onClearPump: function ( ) {
@@ -103,8 +124,7 @@ $btlno = $_SESSION['dosing']['btlno'];
 		onOpenStation: function ( ) {
 			var station = document.getElementById( 'dosingstation' ).value;
 			if ( station == '' ) {
-				alert('You must select a dosing station.');
-				return false;
+				return 'You must select a dosing station.';
 			}
 		},
 		onSaveSession: function ( ) {
@@ -136,9 +156,12 @@ $btlno = $_SESSION['dosing']['btlno'];
 		});
 	}
 
+	function pass_dosingStationPane() {
+		return dw.onOpenStation();
+	}
+
 	dojo.addOnLoad(function() {
 		dojo.event.connect( dojo.widget.byId( 'openDosingStationContainer' ), 'cancelFunction', dw, 'onCancel' );
-		dojo.event.connect( dojo.widget.byId( 'dosingStationPane' ), 'passFunction', dw, 'onOpenStation' );
 		dojo.event.connect( dojo.widget.byId( 'dosingStationBottleLotPane' ), 'passFunction', dw, 'onSaveSession' );
 		dojo.event.connect( dojo.widget.byId( 'dosingClearPane' ), 'passFunction', dw, 'onClearPump' );
 		dojo.event.connect( dojo.widget.byId( 'dosingPrimingPane' ), 'passFunction', dw, 'onPrimePump' );
@@ -148,7 +171,6 @@ $btlno = $_SESSION['dosing']['btlno'];
 
 	dojo.addOnUnload(function() {
 		dojo.event.disconnect( dojo.widget.byId( 'openDosingStationContainer' ), 'cancelFunction', dw, 'onCancel' );
-		dojo.event.disconnect( dojo.widget.byId( 'dosingStationPane' ), 'passFunction', dw, 'onOpenStation' );
 		dojo.event.disconnect( dojo.widget.byId( 'dosingStationBottleLotPane' ), 'passFunction', dw, 'onSaveSession' );
 		dojo.event.disconnect( dojo.widget.byId( 'dosingClearPane' ), 'passFunction', dw, 'onClearPump' );
 		dojo.event.disconnect( dojo.widget.byId( 'dosingPrimingPane' ), 'passFunction', dw, 'onPrimePump' );
@@ -164,7 +186,7 @@ $btlno = $_SESSION['dosing']['btlno'];
  nextButtonLabel="Next &gt; &gt;" previousButtonLabel="&lt; &lt; Previous"
  cancelButtonLabel="Cancel" doneButtonLabel="Done">
 
-	<div dojoType="WizardPane" label="Select Dosing Station (1/5)" id="dosingStationPane">
+	<div dojoType="WizardPane" label="Select Dosing Station (1/5)" id="dosingStationPane" passFunction="pass_dosingStationPane">
 		<h1>Select Dosing Station (1/5)</h1>
 
 		<p>
@@ -176,7 +198,7 @@ $btlno = $_SESSION['dosing']['btlno'];
 
 			<tr>
 				<td align="right">Dosing Station</td>
-				<td align="left"><?php print module_function( 'DosingStation', 'widget', array ( 'dosingstation', "dsenabled = 1" ) ); ?></td>
+				<td align="left"><?php print module_function( 'DosingStation', 'widget', array ( 'dosingstation', "dsenabled = 1 AND dsfacility='".addslashes($_SESSION['default_facility'])."' AND dsopen='closed' AND dslast_close < '".date("Y-m-d")."'" ) ); ?></td>
 			</tr>
 
 		</table>
@@ -247,4 +269,8 @@ $btlno = $_SESSION['dosing']['btlno'];
 
 <div dojoType="Dialog" id="clearDialog" bgOpacity="0.5" toggle="fade" toggleDuration="250" bgColor="blue" style="display: none;" closeNode="hider">
 	<h1>Clearing pump ... </h1>
+</div>
+
+<div dojoType="Dialog" id="settingDialog" bgOpacity="0.5" toggle="fade" toggleDuration="250" bgColor="blue" style="display: none;" closeNode="hider">
+	<h1>Setting dosing station to open ... </h1>
 </div>

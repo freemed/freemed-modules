@@ -26,7 +26,7 @@ class DosingStation extends MaintenanceModule {
 
 	var $MODULE_NAME = 'Dosing Station';
 	var $MODULE_AUTHOR = 'jeff b (jeff@ourexchange.net)';
-	var $MODULE_VERSION = '0.1';
+	var $MODULE_VERSION = '0.2';
 	var $MODULE_FILE = __FILE__;
 
 	var $PACKAGE_MINIMUM_VERSION = '0.8.2';
@@ -41,15 +41,23 @@ class DosingStation extends MaintenanceModule {
 		$this->table_definition = array (
 			'dsname' => SQL__VARCHAR(50),
 			'dslocation' => SQL__VARCHAR(150),
+			'dsfacility' => SQL__INT_UNSIGNED(0),
 			'dsurl' => SQL__VARCHAR(150),
 			'dsenabled' => SQL__INT_UNSIGNED(0),
+			'dslast_close' => SQL__DATE,
+			'dsopen' => SQL__ENUM( array ('open','closed') ),
+			'dsbottle' => SQL__INT_UNSIGNED(0),
+			'dslot' => SQL__INT_UNSIGNED(0),
+			'sshkey' => SQL__TEXT,
 			'id' => SQL__SERIAL
 		);
 		$this->variables = array (
 			'dsname',
 			'dslocation',
+			'dsfacility',
 			'dsurl',
-			'dsenabled'
+			'dsenabled',
+			'sshkey'
 		);
 
 		// Call parent constructor
@@ -60,6 +68,7 @@ class DosingStation extends MaintenanceModule {
 		return array (
 			__("Station Name") => html_form::text_widget('dsname', 50),
 			__("Location") => html_form::text_widget('dslocation', 150),
+			__("Facility") => module_function( 'FacilityModule', 'widget', array( 'dsfacility' ) ),
 			__("URL") => html_form::text_widget('dsurl', 150),
 			__("Dosing Enabled") => html_form::select_widget(
 				'dsenabled',
@@ -67,7 +76,8 @@ class DosingStation extends MaintenanceModule {
 					'enabled' => 1,
 					'disabled' => 0
 				)
-			)
+			),
+			__("SSH Key") => html_form::text_area( 'sshkey' )
 		);
 	} // end method generate_form 
 
@@ -89,6 +99,22 @@ class DosingStation extends MaintenanceModule {
 			)
 		);
 	} // end method view
+
+	function _update ( ) { 
+		$version = freemed::module_version($this->MODULE_NAME);
+                // Version 0.2
+		//
+		//      Add last-closed date and open status.
+		//
+		if (! version_check($version, '0.2')) {
+			$GLOBALS['sql']->query ( "ALTER TABLE ".$this->table_name." ADD COLUMN dslast_close DATE" );
+			$GLOBALS['sql']->query ( "UPDATE ".$this->table_name." SET dslast_close = date('0000-00-00')" );
+			$GLOBALS['sql']->query ( "ALTER TABLE ".$this->table_name." ADD COLUMN dsopen ENUM( 'closed', 'open') NOT NULL" );
+			// not-null enums default to the first item in the enumset.
+			// $GLOBALS['sql']->query ( "UPDATE ".$this->table_name." SET dsopen = 'closed'" );
+		}
+	}
+
 
 } // end class DosingStation
 
