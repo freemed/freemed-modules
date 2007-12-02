@@ -80,12 +80,12 @@
 		</file>
 	<!-- ----- User Interface Hooks ----- -->
 		<file>
-			<source>org.freemedsoftware.hook.task.patient.tpl</source>
+			<source>dojo/org.freemedsoftware.hook.task.patient.tpl</source>
 			<destination>ui/dojo/view/</destination>
 		</file>
 	<!-- ----- User Interface ----- -->
 		<file>
-			<source>org.freemedsoftware.ui.foodassistance.engine.tpl</source>
+			<source>dojo/org.freemedsoftware.ui.foodassistance.engine.tpl</source>
 			<destination>ui/dojo/view/</destination>
 		</file>
 	</install>
