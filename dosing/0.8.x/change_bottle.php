@@ -73,37 +73,18 @@ $btlno = $_SESSION['dosing']['btlno'];
 			var lotid = parseInt( document.getElementById( 'txtLotNo' ).value ); // destination
 			// id 'btlno' is hard-coded for the list of bottle numbers
 			var btlid = parseInt( document.getElementById( 'btlno' ).value ); // destination
-			var amt_tr_from = parseInt( document.getElementById( 'amt_tr_from' ).value );
-			var amt_tr_from = parseInt( document.getElementById( 'amt_tr_from' ).value );
-			var amt_tr_prior = parseInt( document.getElementById( 'amt_tr_prior' ).value );
-			var amt_tr_to = parseInt( document.getElementById( 'amt_tr_to' ).value );
-			var qty_spill_dispensed = parseInt( document.getElementById( 'qty_spill_dispensed' ).value );
-			var qty_spill_other = parseInt( document.getElementById( 'qty_spill_other' ).value );
-			var qty_weight = parseInt( document.getElementById( 'qty_weight' ).value );
-			var empty_bottle_wt = parseInt( document.getElementById( 'empty_bottle_wt' ).value );
-			// Is there a way to encode this so that commas don't cause breakage?
-			var reason = document.getElementById( 'reason' ).value;
-                        
 			var hash = station + ','
 				+ lotid + ','
-				+ btlid + ','
-				+ amt_tr_from + ','
-				+ amt_tr_prior + ','
-				+ amt_tr_to + ','
-				+ qty_spill_dispensed + ','
-				+ qty_spill_other + ','
-				+ qty_weight + ','
-				+ empty_bottle_wt + ','
-				+ reason + ',closed';
+				+ btlid;
 			// Set up blocker
-			dojo.widget.byId( 'transferDialog' ).show();
+			dojo.widget.byId( 'changeDialog' ).show();
 			// Set pump to closed
 			dojo.io.bind({
 				method: 'GET',
 				url: 'json-relay-0.8.x.php?module=dose&method=ajax_changeBottle&param[]=' + hash,
 				load: function( type, data, evt ) {
 					// Change blocker
-					dojo.widget.byId( 'transferDialog' ).hide();
+					dojo.widget.byId( 'changeDialog' ).hide();
 					if ( data ) {
 						// all good
 					} else {
@@ -246,8 +227,8 @@ $btlno = $_SESSION['dosing']['btlno'];
  nextButtonLabel="Next &gt; &gt;" previousButtonLabel="&lt; &lt; Previous"
  cancelButtonLabel="Cancel" doneButtonLabel="Done">
 
-	<div dojoType="WizardPane" label="Select Dosing Station (1/6)" id="dosingStationPane">
-		<h1>Select Dosing Station (1/6)</h1>
+	<div dojoType="WizardPane" label="Select Dosing Station (1/5)" id="dosingStationPane">
+		<h1>Select Dosing Station (1/5)</h1>
 
 		<p>
 			<i>Please select a dosing station if the station presented is
@@ -265,77 +246,9 @@ $btlno = $_SESSION['dosing']['btlno'];
 
 	</div>
 
-	<div dojoType="WizardPane" label="Reconcile Remaining Amount (2/6)" id="reconcilePane">
-	
-		<h1>Reconcile Remaining Amount (2/6)</h1>
+	<div dojoType="WizardPane" label="Clear Pump (2/5)" id="dosingClearPane" canGoBack="false">
 
-		<p><i>Please fill in the following fields for now. These will
-		be derived from information in the database once the reporting
-		system is in place.</i></p>
-
-		<table border="0" cellpadding="5">
-			<tr>
-				<td align="right">Amount transferred to bottles</td>
-				<td align="left"><td align="left"><input type="text" id="amt_tr_from" name="amt_tr_from" value="0" /></td>
-			</tr>
-			<tr>
-				<td align="right">Amount transferred prior</td>
-				<td align="left"><td align="left"><input type="text" id="amt_tr_prior" name="amt_tr_prior" value="0" /></td>
-			</tr>
-			<tr>
-				<td align="right">Amount transferred to</td>
-				<td align="left"><td align="left"><input type="text" id="amt_tr_to" name="amt_tr_to" value="0" /></td>
-			</tr>
-			<tr>
-				<td align="right">Dosing-related spillages</td>
-				<td align="left"><td align="left"><input type="text" id="qty_spill_dispensed" name="qty_spill_dispensed" value="0" /></td>
-			</tr>
-			<tr>
-				<td align="right">Other spillages</td>
-				<td align="left"><td align="left"><input type="text" id="qty_spill_other" name="qty_spill_other" value="0" /></td>
-			</tr>
-			<tr>
-				<td align="right">Bottle weight</td>
-				<td align="left"><td align="left"><input type="text" id="qty_weight" name="qty_weight" value="0" /></td>
-			</tr>
-			<tr>
-				<td align="right">Empty bottle weight</td>
-				<td align="left"><td align="left"><input type="text" id="empty_bottle_wt" name="empty_bottle_wt" value="0" /></td>
-			</tr>
-			<tr>
-				<td align="right">Comments</td>
-				<td align="left"><td align="left"><input type="text" id="reason" name="reason" value="" /></td>
-			</tr>
-		</table>
-	</div>
-<!--
-	<div dojoType="WizardPane" label="Handle Remaining Amount (2/6)" id="handleRemainingPane">
-
-		<h1>Handle Remaining Amount (2/6)</h1>
-
-		<p><i>Please assign the remaining amount elsewhere</i></p>
-
-		<input type="hidden" id="oldBottle" name="oldBottle" value="<?php print $btlno; ?>" />
-
-		<table border="0" cellspacing="0" cellpadding="5">
-
-			<tr>
-				<td align="right">Destination Bottle Number</td>
-				<td align="left"><div id="destBottle"><?php print module_function( 'LotReceipt', 'getAjxBottleNos', array ( $txtLotNo . ',destBottleId' ) ); ?></div></td>
-			</tr>
-
-			<tr>
-				<td align="right">Remaining Amount</td>
-				<td align="left"><input type="text" id="oldRemaining" name="oldRemaining" value="0" /></td>
-			</tr>
-
-		</table>
-
-	</div>
--->
-	<div dojoType="WizardPane" label="Clear Pump (3/6)" id="dosingClearPane" canGoBack="false">
-
-		<h1>Clear Pump (3/6)</h1>
+		<h1>Clear Pump (2/5)</h1>
 
 		<p><i>
 		Click "Next" to clear the selected pump.
@@ -343,9 +256,9 @@ $btlno = $_SESSION['dosing']['btlno'];
 
 	</div>
 
-	<div dojoType="WizardPane" label="Select Lot and Bottle (4/6)" canGoBack="false" id="dosingStationBottleLotPane">
+	<div dojoType="WizardPane" label="Select Lot and Bottle (3/5)" canGoBack="false" id="dosingStationBottleLotPane">
 
-		<h1>Select Lot and Bottle (4/6)</h1>
+		<h1>Select Lot and Bottle (3/5)</h1>
 
 		<table border="0" cellpadding="5">
 
@@ -367,9 +280,9 @@ $btlno = $_SESSION['dosing']['btlno'];
 
 	</div>
 
-	<div dojoType="WizardPane" label="Prime the Pump (5/6)" id="dosingPrimingPane" canGoBack="false">
+	<div dojoType="WizardPane" label="Prime the Pump (4/5)" id="dosingPrimingPane" canGoBack="false">
 
-		<h1>Prime the Pump (5/6)</h1>
+		<h1>Prime the Pump (4/5)</h1>
 
 		<p>
 		Make sure that both the INLET and OUTLET tubes are inserted into the
@@ -382,8 +295,8 @@ $btlno = $_SESSION['dosing']['btlno'];
 
 	</div>
 
-	<div dojoType="WizardPane" id="dosingFinishedPane" label="Clean Pump (6/6)" canGoBack="false">
-		<h1>Clean Pump (6/6)</h1>
+	<div dojoType="WizardPane" id="dosingFinishedPane" label="Clean Pump (5/5)" canGoBack="false">
+		<h1>Clean Pump (5/5)</h1>
 
 		<p><i>Please click "Done" to exit the wizard.</i></p>
 
@@ -399,6 +312,6 @@ $btlno = $_SESSION['dosing']['btlno'];
 	<h1>Clearing pump ... </h1>
 </div>
 
-<div dojoType="Dialog" id="transferDialog" bgOpacity="0.5" toggle="fade" toggleDuration="250" bgColor="blue" style="display: none;" closeNode="hider">
+<div dojoType="Dialog" id="changeDialog" bgOpacity="0.5" toggle="fade" toggleDuration="250" bgColor="blue" style="display: none;" closeNode="hider">
 	<h1>Switching bottles ... </h1>
 </div>

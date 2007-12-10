@@ -465,6 +465,7 @@ class Dose extends EMRModule {
 
 	function setPumpStatus( $blob ) {
 		list ( $station, $lot, $bottle, $status ) = explode ( ',', $blob );
+		syslog(LOG_INFO, "setPumpStatus | called with parameters [$blob]");
 		// make sure we have a number for the station ID
 		if (preg_match("/^\d+$/", $station) < 1) {
 			syslog(LOG_INFO, "setPumpStatus | invalid station $station selected");
@@ -503,62 +504,9 @@ class Dose extends EMRModule {
 		}
 	}
 
-	function ajax_closePump ( $blob ) {
-		list ( $station, $initial_qty, $amt_tr_from, $amt_tr_prior, $amt_tr_to, $qty_dispensed, $qty_spill_dispensed, $qty_spill_other, $qty_weight, $empty_bottle_wt, $reason ) = explode ( ',', $blob );
-
-		// first, set up a reconcile record
-
-		//do all the addslashes at once TODO do we need to do this, given that we use a query-builder below?
-		/*
-		foreach (array( $station, $initial_qty, $amt_tr_from, $amt_tr_prior, $amt_tr_to, $qty_dispensed, $qty_spill_dispensed, $qty_spill_other, $qty_weight, $empty_bottle_wt, $reason ) as &$var) {
-			$var = addslashes($var);
-		}
-		*/
-
-                $stationq = $GLOBALS['sql']->query("SELECT * FROM dosingstation WHERE id='".addslashes($station)."'");
-		$stationr = $GLOBALS['sql']->fetch_array($stationq);
-
-		$bottle = $stationr['dsbottle'];
-		$lot = $stationr['dslot']; // not used at the moment?
-
-		// can we get session variables from here, or do we need to get them from the client?
-		$user = "FIXME User Name";
-
-		// derived fields
-		$net_qty = $initial_qty+$am_tr_from+$am_tr_prior+$am_tr_to;
-		$qty_adjusted = $qty_spill_dipsensed+$qty_spill_other;
-		$qty_balance = $net_qty - $qty_adjusted;
-		$amount_measured = $qty_weight - $empty_bottle_wt;
-		$difference = $amount_measured - $qty_balance;
-
-                $vars = array (
-			'rec_bottle_id' => $bottle,
-			'rec_date' => SQL__NOW,
-			'rec_intial_qty' => $initial_qty,
-			'rec_amt_tr_from' => $am_tr_from,
-			'rec_at_tr_preior' => $am_tr_prior,
-			'rec_amt_tr_to' => $amt_tr_to,
-			'rec_net_qty' => $net_qty,
-			'rec_qty_dispensed' => $qty_dispensed,
-			'rec_qty_spill_dipsensed' => $qty_spill_dispensed,
-			'rec_qty_spill_other' => $qty_spill_other,
-			'rec_qty_adjusted' => $qty_adjusted,
-			'rec_qty_balance' => $qty_balance,
-			'rec_qty_weight' => $qty_weight,
-			'rec_empty_bottle_wt' => $empty_bottle_wt,
-			'rec_amount_measured' => $amount_measured,
-			'rec_difference' => $difference,
-			'rec_reason_diff' => $reason,
-			'rec_prepared_by' => $user
-                );
-                $q = $GLOBALS['sql']->insert_query(
-                        'ReconcileBottle',
-                        $vars
-                );
-                $res = $GLOBALS['sql']->query ( $q );
-
-		// now close the pump for real
-		return setPumpStatus( $station.',closed' );
+	function ajax_closePump ( $station ) {
+		// fill in values for the other fields
+		return $this->setPumpStatus( $station.',0,0,closed' );
 	}
 
 	function checkSplitDosingValid ( $patient, $doseplan, $date, $units ) {
@@ -633,7 +581,7 @@ class Dose extends EMRModule {
 
 		// Sanity check: can't dispense more units than remain in the bottle.
 		$bottle = freemed::get_link_rec($botno, 'lotreceipt');
-		$balance = $bottle['lotrecbottleqty'] - $bottle['lotrecbottleused'];
+		$balance = $bottle['lotrecqtyremain'];
 		if ($balance < $units) {
 			syslog(LOG_INFO, "dispenseDose| Attempting to dispense $units units; only $balance remain in bottle; not dispensing");
 			// Return nonspecific error (no dose dispensed)
@@ -732,65 +680,9 @@ class Dose extends EMRModule {
 	} // end ajax_alreadyDosed
 
 	function ajax_changeBottle ( $blob ) {
-		list ( $station, $lotid, $btlid, $amt_tr_from, $amt_tr_prior, $amt_tr_to, $qty_spill_dispensed, $qty_spill_other, $qty_weight, $empty_bottle_wt, $reason ) = explode ( ',', $blob );
-		$dosingstation = freemed::get_link_rec($station, 'dosingstation');
-		$oldbottle_id = $dosingstation['dsbottle'];
-		$oldbottle = freemed::get_link_rec($oldbottle_id, 'lotreceipt');
-syslog(LOG_INFO, "blob = $blob; btlid = $btlid");
-		$newbottle = freemed::get_link_rec($btlid, 'lotreceipt');
-		
-		// drop a row in ReconcileBottle
-		$initial_qty = $oldbottle['lotrecbottleqty'];
-		$qty_dispensed_r = $GLOBALS['sql']->fetch_array($GLOBAL['sql']->query("SELECT SUM(doseunits) AS sum FROM doserecord WHERE dosebottleid='".addslashes($oldbottle_id)."' AND !datediff(dosegivenstamp,NOW())"));
-		$qty_dispensed = $qty_dispensed_r['sum'];
-		// is actually the amount transferred *to* other bottle
-		$amt_tr_from_q = $oldbottle['lotrecbottleqty'] - $oldbottle['lotrecbottleused'];
-		// can we get session variables from here, or do we need to get them from the client?
-		$user = "FIXME User Name";
-		// TODO this is kind of duplicated from ajax_closePump above.
-
-		// derived fields
-		$net_qty = $initial_qty+$am_tr_from+$am_tr_prior+$am_tr_to;
-		$qty_adjusted = $qty_spill_dipsensed+$qty_spill_other;
-		$qty_balance = $net_qty - $qty_adjusted;
-		$amount_measured = $qty_weight - $empty_bottle_wt;
-		$difference = $amount_measured - $qty_balance;
-
-                $vars = array (
-			'rec_bottle_id' => $oldbottle_id,
-			'rec_date' => SQL__NOW,
-			'rec_intial_qty' => $initial_qty,
-			'rec_amt_tr_from' => $amt_tr_from,
-			'rec_at_tr_preior' => $amt_tr_prior,
-			'rec_amt_tr_to' => $amt_tr_to,
-			'rec_net_qty' => $net_qty,
-			'rec_qty_dispensed' => $qty_dispensed,
-			'rec_qty_spill_dipsensed' => $qty_spill_dispensed,
-			'rec_qty_spill_other' => $qty_spill_other,
-			'rec_qty_adjusted' => $qty_adjusted,
-			'rec_qty_balance' => $qty_balance,
-			'rec_qty_weight' => $qty_weight,
-			'rec_empty_bottle_wt' => $empty_bottle_wt,
-			'rec_amount_measured' => $amount_measured,
-			'rec_difference' => $difference,
-			'rec_reason_diff' => $reason,
-			'rec_prepared_by' => $user
-                );
-                $q = $GLOBALS['sql']->insert_query(
-                        'ReconcileBottle',
-                        $vars
-                );
-                $res = $GLOBALS['sql']->query ( $q );
-
-		// transfer contents
-		$remaining = $oldbottle['lotrecbottleqty'] - $oldbottle['lotrecbottleused'];
-		$transferout = $GLOBALS['sql']->query("UPDATE lotreceipt SET lotrecbottleqty=lotrecbottleused WHERE id = '".addslashes($oldbottle_id)."'");
-		$transferin = $GLOBALS['sql']->query("UPDATE lotreceipt SET lotrecbottleqty=lotrecbottleqty+'".addslashes($remaining)."' WHERE id = '".addslashes($newbottle['id'])."'");
-
-		// update the dosingstation record
-		// TODO sanity-check lotid and btlid to make sure they point somewhere valid. and station, for that matter
-		$updatestation = $GLOBALS['sql']->query("UPDATE dosingstation SET dsbottle='".addslashes($btlid)."', dslot='".addslashes($lotid)."' WHERE id = '".addslashes($station)."'");
-
+		list ( $station, $lotid, $btlid ) = explode ( ',', $blob );
+		$changeq = "UPDATE dosingstation SET dsbottle='".addslashes($btlid).", dslot='".addslashes($lotid)."' WHERE id='".addslashes($station)."'";
+		$GLOBALS['sql']->query($changeq);
 		return true;
 	} // end ajax_changeBottle
 

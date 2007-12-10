@@ -24,7 +24,7 @@ LoadObjectDependency('_FreeMED.MaintenanceModule');
 
 class LotReceipt extends MaintenanceModule {
 	var $MODULE_NAME = "LotReceipt";
-	var $MODULE_VERSION = "0.1";
+	var $MODULE_VERSION = "0.2";
 
 	var $MODULE_FILE = __FILE__;
 
@@ -44,8 +44,8 @@ class LotReceipt extends MaintenanceModule {
 			'lotrec40k' => SQL__INT_UNSIGNED(0),
 			'lotrecuserid' => SQL__INT_UNSIGNED(0),
 			'lotrecbottleno' => SQL__VARCHAR(50),
-			'lotrecbottleqty' => SQL__INT_UNSIGNED(0),
-			'lotrecbottleused' => SQL__INT_UNSIGNED(0),
+			'lotrecqtytotal' => SQL__INT_UNSIGNED(0),
+			'lotrecqtyremain' => SQL__INT_UNSIGNED(0),
 			'lotrecmfgdate' => SQL__DATE,
 			'lotrecexpdate' => SQL__DATE,
 			'lotsupplrefno' => SQL__INT_UNSIGNED(0),
@@ -65,7 +65,7 @@ class LotReceipt extends MaintenanceModule {
 			'lotrecmfgdate' ,
 			'lotsupplrefno' ,
 			'lotrecexpdate',
-			'lotrecbtlqty'
+			'lotrecqtytotal'
 		);
 
 		$this->summary_vars = array (
@@ -121,7 +121,7 @@ class LotReceipt extends MaintenanceModule {
 				'lotrecbottleno',
 				'lotrecmfgdate',
 				'lotrecexpdate',
-				'lotrecbottleqty'
+				'lotrecqtytotal'
 			),
 			html_form::form_table(array(			
 			__(" ") => $this->prtStep2($_POST["txtTQty"]))
@@ -162,8 +162,8 @@ class LotReceipt extends MaintenanceModule {
 						'lotrecbottleno' => $_POST['txtbottleno1_'.$i],
 						'lotrecmfgdate' => $_POST['txtmanfdate1_'.$i] ,
 						'lotrecexpdate' => $_POST['txtexpdate1_'.$i],
-						'lotrecbottleqty' => $_POST['txtbottleqty_'.$i],
-						'lotrecbottleused' => 0,
+						'lotrecqtytotal' => $_POST['txtbottleqty_'.$i],
+						'lotrecqtyremain' => $_POST['txtbottleqty_'.$i],
 					);  // change $_POST['txtid20kk'] to $_POST['txt20k'] same ro 40 k by raju
 					$query = $GLOBALS['sql']->insert_query (
 						$this->table_name,
@@ -329,17 +329,20 @@ class LotReceipt extends MaintenanceModule {
 		return html_form::select_widget($selectName, $ar);
 	} // end get lot numbers
 	
-	function getAjaxBottleNos( $selectName) {
+	function getAjaxBottleNos( $hash ) {
+		list ($selectNo, $widgetName) = explode (',', $hash);
+		if ($widgetName == "") $widgetName = 'btlno';
+
 		global $btlno;
 		if ( $_SESSION['dosing']['btlno'] ) {
 			$btlno = $_SESSION['dosing']['btlno'];
 		}
-		$q = $GLOBALS['sql']->query("SELECT  lotrecbottleno , lotreceipt.id FROM lotreceipt, lotreg WHERE  lotreceipt.lotrecno  = lotreg.id AND lotreg.id = '".addslashes($selectName)."' order by lotreg.lotrecno");
+		$q = $GLOBALS['sql']->query("SELECT  lotrecbottleno , lotreceipt.id FROM lotreceipt, lotreg WHERE  lotreceipt.lotrecno  = lotreg.id AND lotreg.id = '".addslashes($selectNo)."' order by lotreg.lotrecno");
 		$ar[0] = "Select Bottle";
 		while ($r = $GLOBALS['sql']->fetch_array($q)) {
 			$ar[$r['lotrecbottleno']] = $r["id"];
 		}
-		return html_form::select_widget("btlno", $ar );
+		return html_form::select_widget( $widgetName, $ar );
 	} // end get lot numbers
 
 	function getAjxBottleNos( $sName ) {
@@ -376,16 +379,16 @@ class LotReceipt extends MaintenanceModule {
 	} // end get lot numbers
 
 
-	function getLotNosForWizard( $selectName ) {
+	function getLotNosForWizard( $selectName, $childWidgetName = "btlno" ) {
 		$loc = $_SESSION['default_facility'];
-		syslog(LOG_DEBUG, "SELECT  lotreg.lotrecno, lotreg.id FROM lotreg JOIN lotreceipt ON lotreceipt.lotrecno=lotreg.id WHERE lotrecsite='".addslashes($loc)."'");
 		$q = $GLOBALS['sql']->query("SELECT  lotreg.lotrecno, lotreg.id FROM lotreg JOIN lotreceipt ON lotreceipt.lotrecno=lotreg.id WHERE lotrecsite='".addslashes($loc)."'");
 		$ar[0] = "Please Select";
 		while ($lastr = $GLOBALS['sql']->fetch_array($q)) {
 			$key = $lastr["lotrecno"];
 			$ar[$key] = $lastr["id"];
 		}
-		$var = html_form::select_widget($selectName, $ar,array('on_change' => "getBottleNumbers(this.value,this.name);"));
+		syslog(LOG_INFO, "getLotNosForWizard | selectName = $selectName");
+		$var = html_form::select_widget($selectName, $ar,array('on_change' => "getBottleNumbers(this.value,'$childWidgetName');"));
 		return $var;
 	} // end get lot numbers
 
@@ -412,12 +415,16 @@ class LotReceipt extends MaintenanceModule {
 
 	}
 	
-	function getBottleQty($id){
-		$q1 = $GLOBALS['sql']->query("SELECT lotrecbottleno, id, lotrecbottleqty FROM lotreceipt Where id = $id ");
-		$q = $GLOBALS['sql']->fetch_array($q1);
-		return $q["lotrecbottleqty"];
+	function getBottleTotal($id){
+		$rec = freemed::get_link_rec($id, 'lotreceipt');
+		return $rec["lotrecqtytotal"];
 	}
 	
+	function getBottleRemain($id){
+		$rec = freemed::get_link_rec($id, 'lotreceipt');
+		return $rec["lotrecqtyremain"];
+	}
+
 	function addform_link () {
 		return "
 		<a HREF=\"module_loader.php?module=".
@@ -457,9 +464,21 @@ class LotReceipt extends MaintenanceModule {
 		return $var;
 	} // end get Bottle numbers table
 
-
+        function _update ( ) {
+		global $sql;
+		$version = freemed::module_version($this->MODULE_NAME);
+		// Version 0.2
+		//
+		//      Changed quantity fields
+		//
+		if (!version_check($version, '0.2')) {
+			$sql->query('ALTER TABLE '.$this->table_name.' CHANGE lotrecbottleqty lotrecqtytotal INT(11) UNSIGNED');
+			$sql->query('ALTER TABLE '.$this->table_name.' ADD COLUMN lotrecqtyremain INT(11) UNSIGNED');
+			$sql->query('UPDATE '.$this->table_name.' SET lotrecqtyremain = lotrecqtytotal - lotrecbottleused');
+			$sql->query('ALTER TABLE '.$this->table_name.' DROP COLUMN lotrecbottleused');
+		}
+	} // end function _update
 } // end class LotReceipt
-
 
 register_module("LotReceipt");
 
