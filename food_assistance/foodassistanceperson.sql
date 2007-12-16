@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS `foodassistanceperson` (
 	fa_household_children	INT UNSIGNED NOT NULL DEFAULT 0,
 	fa_programs		TEXT,
 	id			SERIAL
-) ENGINE=InnoDB;
+);
 
 DROP PROCEDURE IF EXISTS foodassistanceperson_Upgrade;
 DELIMITER //
@@ -59,7 +59,7 @@ CALL foodassistanceperson_Upgrade( );
 DELIMITER //
 
 CREATE TRIGGER foodassistanceperson_Insert
-	AFTER INSERT ON labs
+	AFTER INSERT ON foodassistanceperson
 	FOR EACH ROW BEGIN
 		IF ISNULL( NEW.fa_age ) THEN
 			UPDATE foodassistanceperson SET fa_age = FLOOR( DATEDIFF( NOW(), NEW.fa_dob ) / 365 );

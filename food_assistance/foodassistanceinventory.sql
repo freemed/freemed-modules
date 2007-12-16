@@ -23,13 +23,13 @@
 CREATE TABLE IF NOT EXISTS `foodassistanceinventory` (
 	stamp			TIMESTAMP(14) NOT NULL DEFAULT NOW(),
 	enteredby		INT UNSIGNED NOT NULL DEFAULT 0,
-	dateof			DATE NOT NULL DEFAULT NOW(),
+	dateof			DATE NOT NULL,
 	contents		TEXT,
 	comment			VARCHAR (150),
 	totalcount		INT UNSIGNED NOT NULL DEFAULT 0,
 	currentcount		INT UNSIGNED NOT NULL DEFAULT 0,
 	id			SERIAL
-) ENGINE=InnoDB;
+);
 
 DROP PROCEDURE IF EXISTS foodassistanceinventory_Upgrade;
 DELIMITER //

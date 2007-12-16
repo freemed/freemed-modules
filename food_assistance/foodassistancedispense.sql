@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS `foodassistancedispense` (
 	inventory		INT UNSIGNED NOT NULL,
 	signature		BLOB,
 	id			SERIAL
-) ENGINE=InnoDB;
+);
 
 DROP PROCEDURE IF EXISTS foodassistancedispense_Upgrade;
 DELIMITER //

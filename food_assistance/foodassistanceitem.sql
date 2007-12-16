@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS `foodassistanceitem` (
 	description		VARCHAR(150) NOT NULL DEFAULT '',
 	instock			INT UNSIGNED NOT NULL DEFAULT 0,
 	id			SERIAL
-) ENGINE=InnoDB;
+);
 
 DROP PROCEDURE IF EXISTS foodassistanceitem_Upgrade;
 DELIMITER //
