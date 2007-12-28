@@ -29,7 +29,7 @@ class ReconcileBottle extends MaintenanceModule {
 	var $MODULE_FILE = __FILE__;
 
 	var $record_name = 'Reconcile Bottle';
-	var $table_name = 'reconcilereport';
+	var $table_name = 'reconcilebottle';
 	var $order_by = 'rec_per_end';
 
 	
@@ -107,6 +107,57 @@ class ReconcileBottle extends MaintenanceModule {
 	function view ( ) { }
 
 	// AJAX FUNCTIONS HERE
+
+	function ajax_getFields ( $blob ) {
+		$rec_bottle_id = $blob;
+
+		// period start: max(0000-00-00, date of last reconcile)
+		$q = $GLOBALS['sql']->query("SELECT * FROM ".$this->table_name." WHERE rec_bottle_id='".addslashes($rec_bottle_id)."' ORDER BY rec_per_end DESC LIMIT 1");
+		$r = $GLOBALS['sql']->fetch_array($q);
+		if ($r['rec_per_end'] != null) {
+			$ret['rec_per_begin'] = $r['rec_per_end'];
+			$ret['rec_qty_initial'] = $r['rec_qty_final_actual'];
+		} else {
+			$ret['rec_per_begin'] = "0000-00-00";
+			$bottle = freemed::get_link_rec($rec_bottle_id, 'lotreceipt');
+			$ret['rec_qty_initial'] = $bottle['lotrecqtytotal'];
+		}
+
+		// quantities transferred, as described by transfer records
+		$q = $GLOBALS['sql']->query("SELECT SUM(bt_quantity) AS total FROM bottletransfer WHERE bt_to_bottle='".addslashes($rec_bottle_id)."' AND bt_date >= '".addslashes($ret['rec_per_begin'])."'");
+		$r = $GLOBALS['sql']->fetch_array($q);
+		$ret['rec_qty_tr_in'] = (empty($r['total']) ? 0 : $r['total']);
+
+		$q = $GLOBALS['sql']->query("SELECT SUM(bt_quantity) AS total FROM bottletransfer WHERE bt_from_bottle='".addslashes($rec_bottle_id)."' AND bt_date >= '".addslashes($ret['rec_per_begin'])."'");
+		$r = $GLOBALS['sql']->fetch_array($q);
+		$ret['rec_qty_tr_out'] = (empty($r['total']) ? 0 : $r['total']);
+
+		// quantities dispensed, as described by dosing records
+		$q = $GLOBALS['sql']->query("SELECT SUM(doseunits) AS total FROM doserecord WHERE dosebottleid='".addslashes($rec_bottle_id)."' AND doseassigneddate = CAST(dosegivenstamp AS DATE) AND dosegiven=1");
+		$r = $GLOBALS['sql']->fetch_array($q);
+		$ret['rec_qty_disp'] = (empty($r['total']) ? 0 : $r['total']);
+		
+		$q = $GLOBALS['sql']->query("SELECT SUM(doseunits) AS total FROM doserecord WHERE dosebottleid='".addslashes($rec_bottle_id)."' AND doseassigneddate > CAST(dosegivenstamp AS DATE) AND dosegiven=1");
+		$r = $GLOBALS['sql']->fetch_array($q);
+		$ret['rec_qty_disp_takehome'] = (empty($r['total']) ? 0 : $r['total']);
+
+		$q = $GLOBALS['sql']->query("SELECT SUM(doseunits) AS total FROM doserecord WHERE dosebottleid='".addslashes($rec_bottle_id)."' AND dosegiven=2");
+		$r = $GLOBALS['sql']->fetch_array($q);
+		$ret['rec_qty_spill'] = (empty($r['total']) ? 0 : $r['total']);
+		
+		// NOTE: We're calculating the amount that should be left in
+		// the bottle, but we could just as easily select it from the
+		// record in lotreceipt. This decision was arbitrary.
+		$ret['rec_qty_final_expected'] = $ret['rec_qty_initial']
+			+ $ret['rec_qty_tr_in']
+			- $ret['rec_qty_tr_out']
+			- $ret['rec_qty_disp']
+			- $ret['rec_qty_disp_takehome']
+			- $ret['rec_qty_spill'];
+
+		return $ret;
+	}
+
 	function ajax_reconcile ( $blob ) {
 		$blobr = explode(",", $blob);
 		$rec_bottle_id = array_shift($blobr);
@@ -114,64 +165,34 @@ class ReconcileBottle extends MaintenanceModule {
 		// last element of $blob is a possibly-comma-laden comment
 		$rec_reason = implode(",", $blobr);
 		
-		// period start: max(0000-00-00, date of last reconcile)
-		$q = $GLOBALS['sql']->query("SELECT * FROM ".$this->table_name." WHERE rec_bottle_id='".addslashes($rec_bottle_id)."' ORDER BY rec_per_end DESC LIMIT 1");
-		$r = $GLOBALS['sql']->fetch_array($q);
-		if ($r['rec_per_end'] != null) {
-			$rec_per_begin = $r['rec_per_end'];
-			$rec_qty_initial = $r['rec_qty_final_actual'];
-		} else {
-			$rec_per_begin = "0000-00-00";
-			$bottle = freemed::get_link_rec($rec_bottle_id, 'lotreceipt');
-			$rec_qty_initial = $bottle['lotrecqtytotal'];
-		}
+		$rec_user = $_SESSION['authdata']['user'];
 
-		// quantities transferred, as described by transfer records
-		$q = $GLOBALS['sql']->query("SELECT SUM(bt_quantity) AS total FROM bottletransfer WHERE bt_to_bottle='".addslashes($rec_bottle_id)."' AND bt_date >= '".addslashes($rec_per_begin)."'");
-		$r = $GLOBALS['sql']->fetch_array($q);
-		$rec_qty_tr_in = $r['total'];
-
-		$q = $GLOBALS['sql']->query("SELECT SUM(bt_quantity) AS total FROM bottletransfer WHERE bt_from_bottle='".addslashes($rec_bottle_id)."' AND bt_date >= '".addslashes($rec_per_begin)."'");
-		$r = $GLOBALS['sql']->fetch_array($q);
-		$rec_qty_tr_out = $r['total'];
-
-		// quantities dispensed, as described by dosing records
-		$q = $GLOBALS['sql']->query("SELECT SUM(doseunits) AS total FROM doserecord WHERE dosebottleid='".addslashes($rec_bottle_id)."' AND doseassigneddate = CAST(dosegivenstamp AS DATE) AND dosegiven=1");
-		$r = $GLOBALS['sql']->fetch_array($q);
-		$rec_qty_disp = $r['total'];
-		
-		$q = $GLOBALS['sql']->query("SELECT SUM(doseunits) AS total FROM doserecord WHERE dosebottleid='".addslashes($rec_bottle_id)."' AND doseassigneddate > CAST(dosegivenstamp AS DATE) AND dosegiven=1");
-		$r = $GLOBALS['sql']->fetch_array($q);
-		$rec_qty_disp_takehome = $r['total'];
-
-		/* TODO dosepreparedunits? dosepouredunits? asked JC 12/9 --adb
-		$q = $GLOBALS['sql']->query("SELECT SUM(????) AS total FROM doserecord WHERE dosebottleid='".addslashes($rec_bottle_id)."' AND dosegiven=2");
-		$r = $GLOBALS['sql']->fetch_array($q);
-		$rec_qty_spill = $r['total'];
-		*/
-		$rec_qty_spill = 0; // placeholder
-		
-		// NOTE: We're calculating the amount that should be left in
-		// the bottle, but we could just as easily select it from the
-		// record in lotreceipt. This decision was arbitrary.
-		$rec_qty_final_expected = $rec_qty_initial
-			+ $rec_qty_tr_in
-			- $rec_qty_tr_out
-			- $rec_qty_disp
-			- $rec_qty_disp_takehome
-			- $rec_qty_spill;
-
-		// TODO asked Jeff how to get current UID 12/9 --adb
-		$rec_user = 0;
+		$fields = $this->ajax_getFields($rec_bottle_id);
+		extract($fields);
 
 		// save the reconcile report
 		$q = $GLOBALS['sql']->insert_query(
 			$this->table_name,
-			$this->variables
+			array (
+				'rec_bottle_id' => $rec_bottle_id,
+				'rec_user' => $rec_user,
+				'rec_per_begin' => $rec_per_begin,
+				'rec_per_end' => SQL__NOW,
+				'rec_qty_initial' => $rec_qty_initial,
+				'rec_qty_tr_in' => $rec_qty_tr_in,
+				'rec_qty_tr_out' => $rec_qty_tr_out,
+				'rec_qty_disp' => $rec_qty_disp,
+				'rec_qty_disp_takehome' => $rec_qty_disp_takehome,
+				'rec_qty_spill' => $rec_qty_spill,
+				'rec_qty_final_expected' => $rec_qty_final_expected,
+				'rec_reason' => $rec_reason,
+				'rec_qty_final_actual' => $rec_qty_final_actual
+			)
 		);
 		$GLOBALS['sql']->query($q);
 		// update remaining quantity in the bottle
 		$GLOBALS['sql']->query("UPDATE lotreceipt SET lotrecqtyremain = '".addslashes($rec_qty_final_actual)."' WHERE id = '".addslashes($rec_bottle_id)."'");
+		return true;
 	}
 } // end class ReconcileBottle 
 

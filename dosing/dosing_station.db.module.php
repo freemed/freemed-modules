@@ -100,6 +100,16 @@ class DosingStation extends MaintenanceModule {
 		);
 	} // end method view
 
+	// AJAX functions
+	function ajax_getCurrentBottle ( $blob ) {
+		$id = $blob; // only one parameter
+		$station = freemed::get_link_rec($id, $this->table_name);
+		if ($station['id'] != null)
+			return $station['dsbottle'];
+		else
+			return false;
+	} // end method ajax_getCurrentBottle
+
 	function _update ( ) { 
 		$version = freemed::module_version($this->MODULE_NAME);
                 // Version 0.2

@@ -3,6 +3,7 @@
   //
   // Authors:
   //      Jeff Buchbinder <jeff@freemedsoftware.org>
+  //      Adam Buchbinder <adam.buchbinder@gmail.com>
   //
   // Copyright (C) 1999-2006 FreeMED Software Foundation
   //
@@ -24,7 +25,7 @@ LoadObjectDependency('_FreeMED.EMRModule');
 
 class Dose extends EMRModule {
 	var $MODULE_NAME = "Dose";
-	var $MODULE_VERSION = "0.1";
+	var $MODULE_VERSION = "0.2";
 
 	var $MODULE_FILE = __FILE__;
 
@@ -44,8 +45,6 @@ class Dose extends EMRModule {
 			'dosestation' => SQL__INT_UNSIGNED(0),
 			'dosemedicationtype' => SQL__VARCHAR(200),
 			'dosemedicationdispensed' => SQL__INT_UNSIGNED(0),
-			'dosepouredunits' => SQL__INT_UNSIGNED(0),
-			'dosepreparedunits' => SQL__INT_UNSIGNED(0),
 			'doseunits' => SQL__CHAR(10),
 			'dosecomment' => SQL__VARCHAR(250),
 			'dosebottleid'=> SQL__INT_UNSIGNED(0),
@@ -62,8 +61,6 @@ class Dose extends EMRModule {
 			'dosestation',
 			'dosemedicationtype',
 			'dosemedicationdispensed',
-			'dosepouredunits',
-			'dosepreparedunits',
 			'dosebottleid',
 			'doseunits',
 			'dosecomment'
@@ -97,19 +94,18 @@ class Dose extends EMRModule {
 			function recordMistake ( ) {
 				var id = document.getElementById('id').value;
 				var comment = document.getElementById('dosecomment').value;
-				var poured = document.getElementById('dosepouredunits').value;
-				var prepared = document.getElementById('dosepreparedunits').value;
+				var units= document.getElementById('mistakeunits').value;
 				// A sanity clause?
 				if ( comment.length < 3 ) {
 					alert('You must specify a reason for the dose failing.');
 					return false;
 				}
 				// Avoid duplicate clicks
-				alert(id + '##' + poured + '##' + prepared + '##' + comment);				
+				alert(id + '##' + units + '##' + comment);				
 				document.getElementById('mistakeButton').disabled = true;
 				// XmlHttpRequest send
 
-				x_module_html('dose', 'ajax_recordMistake', id + '##' + poured + '##' + prepared + '##' + comment, updateRecordMistake);
+				x_module_html('dose', 'ajax_recordMistake', id + '##' + units + '##' + comment, updateRecordMistake);
 			}
 			function updateRecordMistake ( value ) {
 				// Kick to another window
@@ -125,12 +121,8 @@ class Dose extends EMRModule {
 				<td colspan=\"2\" align=\"center\">Dosing Mistake Entry</td>
 			</tr>
 			<tr>
-				<td>Poured Units</td>
-				<td><input type=\"text\" name=\"dosepouredunits\" id=\"dosepouredunits\" value=\"0\" /></td>
-			</tr>
-			<tr>
-				<td>Prepared Units</td>
-				<td><input type=\"text\" name=\"dosepreparedunits\" id=\"dosepreparedunits\" value=\"0\" /></td>
+				<td>Lost Units</td>
+				<td><input type=\"text\" name=\"mistakeunits\" id=\"mistakeunits\" value=\"0\" /></td>
 			</tr>
 			<tr>
 				<td>Reason / Comment</td>
@@ -148,300 +140,11 @@ class Dose extends EMRModule {
 	function del ( ) { }
 
 	function addform ( ) {
-		if ( 1 == 1 ) {
-	                ob_start();
-	                include_once ('dosing_wizard.php');
-	                $GLOBALS['display_buffer'] .= ob_get_contents();
-	                ob_end_clean();
-			return true;
-		}
-
-		//---------------------------------------------- old is below ----------------
-
-
-//		$q = $GLOBALS['sql']->fetch_array($GLOBALS['sql']->query("SELECT id FROM doseplan WHERE doseplanpatient='".addslashes($_REQUEST['patient'])."' AND doseplanactive=1 ORDER BY id DESC LIMIT 1"));
-//		print "SELECT id FROM doseplan WHERE doseplanpatient='".addslashes($_REQUEST['patient'])."' AND doseplanactive=1 AND doseplaneffectivedate <= NOW() ORDER BY doseplanstartdate LIMIT 1";
-		$q = $GLOBALS['sql']->fetch_array($GLOBALS['sql']->query("SELECT id FROM doseplan WHERE doseplanpatient='".addslashes($_REQUEST['patient'])."' AND doseplanactive=1 AND doseplanstartdate <= NOW() ORDER BY doseplanstartdate  DESC LIMIT 1"));
-		syslog(LOG_INFO, "dose last doseplan = ".$q['id']);
-		$_REQUEST['doseplanid'] = $GLOBALS['doseplanid'] = $doseplanid = $q['id'];
-		$_REQUEST['doseassigneddate'] = $GLOBALS['doseassigneddate'] = date ('Y-m-d');
-/*
-		var_dump(module_function( $doseplanid  )."<input type=\"hidden\" id=\"doseplanid\" value=\"".$doseplanid."\" />");
-		exit;
-*/
-
-		// Figure out dosing station based on idf
-		$st = $GLOBALS['sql']->fetch_array($GLOBALS['sql']->query( "SELECT id FROM dosingstation WHERE dsurl LIKE '%".addslashes( $_SERVER['REMOTE_ADDR'] )."%' LIMIT 1" ));
-		if ($st['id'] > 0) { $_REQUEST['dosestation'] = $GLOBALS['dosestation'] = $st['id']; }
-
-		include_once(freemed::template_file('ajax.php'));
-
-		$hold_status = module_function( 'dosehold', 'GetCurrentHoldStatusByPatient', array ( $_REQUEST['patient'] ) );
-		switch ($hold_status) {
-			case 1:
-			$hold_type = "SOFT HOLD";
-			break;
-
-			case 2:
-			$GLOBALS['display_buffer'] .= "
-			<div align=\"center\">
-			<b>There is a hard hold on this patient.</b>
-			<br/>
-			<a onClick=\"window.location(-1); return true;\" class=\"button\">Go Back</a>
-			</div>
-			";
-			return false;
-			break;
-
-			case 0: default:
-			$hold_type = "No holds";
-			break; // 0 = no hold
-		}
-
-		// Load saved session values, if they exist
-		global $dosestation; $dosestation = $_SESSION[ 'dosing' ][ 'station'  ];
-		global $txtLotNo;    $txtLotNo    = $_SESSION[ 'dosing' ][ 'txtLotNo' ];
-
-		$GLOBALS['display_buffer'] .= 
-			"<center><table border=\"0\"><tr><td valign=\"top\">\n".
-			html_form::form_table(array (
-			__("Hold Status (by patient)") => $hold_text,
-			__("Dosing Plan") => module_function( 'doseplan', 'to_text', array ( $doseplanid ) )." <input type=\"hidden\" id=\"doseplanid\" value=\"".$doseplanid."\" />",
-			__("Dosing Station") => module_function ('dosingstation', 'widget', array ( 'dosestation' ) ),
-			__("Assigned Date") => fm_date_entry ( 'doseassigneddate' ),
-			__("Select Lot No") => module_function( 'LotReceipt', 'getLotNos', array ( "txtLotNo" ) ),
-			__("Select Bottle No") => "<div id='idBtlNo'> </div>" ,			
-		))."<td>".
-			"<center><div style=\"border: 1px solid #000000; width: 300px;\">\n".
-			"<div align=\"center\">\n".
-			ajax_expand_module_html(
-				'dosePlanDiv',
-				'doseplan',
-				'ajax_display_dose_plan',
-				"document.getElementById('doseplanid').value"
-			)." Show Dose Plan </div>
-			<div align=\"center\" id=\"dosePlanDiv\"></div>
-			</div></center>
-			</td></tr></table>
-			<script>
-			function getbtlno(){
-				x_module_html('lotreceipt', 'getAjxBottleNos', document.getElementById('txtLotNo').value, test);
-			}
-			function test( value ){
-				document.getElementById('idBtlNo').innerHTML = value;
-			}
-			</script>
-			</center>\n";
-			
-//		$blRet=	$GLOBALS['sql']->fetch_array($GLOBALS['sql']->query("SELECT doseplantakehomesched FROM doseplan WHERE id = ".$doseplanid." AND doseplanactive=1 ORDER BY doseplanstartdate LIMIT 1"));
-		$blRet=	$GLOBALS['sql']->fetch_array($GLOBALS['sql']->query("SELECT doseplantakehomecountgiven FROM doseplan WHERE id = ".$doseplanid." AND doseplanactive=1 ORDER BY doseplanstartdate LIMIT 1"));
-	 	
-		$GLOBALS['display_buffer'] .= "
-			<script language=\"javascript\">
-
-			// Force initial load
-			x_module_html('doseplan', 'ajax_display_dose_plan', document.getElementById('doseplanid').value, x_dosePlanDiv_expand_div);
-
-			function updateDoseAmount ( ) {
-				var station = document.getElementById('dosestation').value;
-				var plan = document.getElementById('doseplanid').value;
-				var dt = document.getElementById('doseassigneddate_cal').value;
-				if ( station < 1 ) {
-					alert('You must select a dosing station to continue.');
-					return false;
-				}
-				x_module_html('doseplan', 'ajax_doseForDate', plan + ',' + dt, updateDoseAmountPopulate);
-				x_module_html('".get_class($this)."', 'ajax_alreadyDosed', '".addslashes($_REQUEST['patient'])."' + ',' + dt, alreadyDosedProcess);
-			}
-			function alreadyDosedProcess ( value ) {
-				if (value.indexOf('ALREADY') != -1) {
-					// Already dosed, don't allow dispensing.
-					document.getElementById('dispenseButton').disabled = true;
-				} else {
-					document.getElementById('dispenseButton').disabled = false;
-				}
-				document.getElementById('dosedalready').innerHTML = value;
-			}
-			function updateDoseAmountPopulate ( value ) {
-				if ( value > 0 ) {
-					document.getElementById('doseunits').value = value;
-					document.getElementById('stageTwo').style.display = 'block';
-				} else {
-					alert('No dose is scheduled for the date selected.');
-					document.getElementById('doseunits').value = value;
-					document.getElementById('stageTwo').style.display = 'none';
-				}
-			}
-			</script>
-			<div align=\"center\">
-			<input type=\"button\" name=\"updateDoseAmount\" value=\"Calculate Dose\" onClick=\"updateDoseAmount(); return true;\" />
-			</div>
-		";
-
-		$GLOBALS['display_buffer'] .= "
-			<div id=\"stageTwo\" style=\"display:none;\">
-			<center><div id=\"dosedalready\"></div></center>
-			<div align=\"center\">".__("Units")."  ".html_form::text_widget( 'doseunits', array ( 'id' => 'doseunits' ) )."</div>
-			";
-
-		$GLOBALS['display_buffer'] .= "
-			<div align=\"center\">
-			<input type=\"button\" value=\"Dispense\" id=\"dispenseButton\" onClick=\"dispenseDose(); return true;\" />
-			</div>
-			<input type=\"hidden\" id=\"id\" name=\"id\" value=\"0\" />
-			<center><div id=\"message\" style=\"background-color: #cccccc; font-weight: bold;\"></div></center>
-			<script language=\"javascript\">
-			function dispenseDose ( ) {
-				// Disable button so it can't be pressed again
-				document.getElementById('dispenseButton').disabled = true;
-
-				// Save us some room
-				x_dosePlanDiv_contract_div();
-
-				// Get values to submit
-				var plan = document.getElementById('doseplanid').value;
-				var dt = document.getElementById('doseassigneddate_cal').value;
-				var units = document.getElementById('doseunits').value;
-				var station = document.getElementById('dosestation').value;
-				var btlid = document.getElementById('btlno').value;
-				x_module_html('".get_class($this)."', 'dispenseDose', '".addslashes($_REQUEST['patient'])."' + ',' + dt + ',' + plan + ',' + units + ',' + station + ',$txtLotNo,' + btlid, dispenseDoseAction);
-			}
-			function dispenseDoseAction ( value ) {
-				
-				if ( value == -99 ) {
-					document.getElementById('dispenseButton').disabled = false;
-					document.getElementById('message').innerHTML = 'Split dosing has been attempted with a non-valid value.';
-					document.getElementById('message').style.backgroundColor = '#ff0000';
-					document.getElementById('stageThree').style.display = 'none';
-					return true;
-				}
-				if ( value < 0 ) {
-					// Error in dosing, negative value, make sure it's set properly
-					document.getElementById('id').value = 0 - value;
-					document.getElementById('message').innerHTML = 'A dosing error has occurred, but the machine has reported that it has dispensed something.';
-					document.getElementById('message').style.backgroundColor = '#ff0000';
-					document.getElementById('stageThree').style.display = 'block';
-					return true;
-				}
-				if ( value == 0 ) {
-					// Nothing happened, so we just don't do anything from here.
-					document.getElementById('id').value = 0;
-					document.getElementById('message').innerHTML = 'A dosing error has occurred, but nothing was dispensed.';
-					return true;
-				} else {
-					// Dose okay, show green, move on.
-					document.getElementById('id').value = value;
-					document.getElementById('message').innerHTML = 'Dose was dispensed successfully.';
-					document.getElementById('message').style.backgroundColor = '#00ff00';
-					document.getElementById('stageThree').style.display = 'block';
-					return true;
-				}
-			}
-			</script>
-			</div> <!-- stageTwo -->
-
-			<center>
-			<div id=\"stageThree\" style=\"display:none;\">
-			<table border=\"0\">
-			<tr>
-				<td>Bottles Given / Returned</td>
-				<td>
-					<input type=\"text\" name=\"doseplantakehomecountgiven\" id=\"doseplantakehomecountgiven\" value=\" ".$blRet[0]." \" /> <b>/</b>
-					<input type=\"text\" name=\"doseplantakehomecountreturned\" id=\"doseplantakehomecountreturned\" value=\"0\" />
-					<input type=\"button\" id=\"bottlesButton\" value=\"Record\" onClick=\"recordBottles();\" />
-				</td>
-			</tr>
-			<tr>
-				<td colspan=\"2\" align=\"center\">Dosing Mistake Entry</td>
-			</tr>
-			<tr>
-				<td>Poured Units</td>
-				<td><input type=\"text\" name=\"dosepouredunits\" id=\"dosepouredunits\" value=\"0\" /></td>
-			</tr>
-			<tr>
-				<td>Prepared Units</td>
-				<td><input type=\"text\" name=\"dosepreparedunits\" id=\"dosepreparedunits\" value=\"0\" /></td>
-			</tr>
-			<tr>
-				<td>Reason / Comment</td>
-				<td><input type=\"text\" name=\"dosecomment\" id=\"dosecomment\" /></td>
-			</tr>
-			<tr>
-				<td><label for=\"pouragain\">Pour Again?</label></td>
-				<td><input type=\"checkbox\" name=\"pouragain\" id=\"pouragain\" value=\"1\" /></td>
-			</tr>
-			<tr>
-				<td colspan=\"2\" align=\"center\"><input type=\"button\" id=\"mistakeButton\" value=\"Record Mistake\" onClick=\"alert(123);recordMistake(); return true;\" />
-				<input type=\"button\" id=\"doseAnotherButton\" value=\"Another Dose\" onClick=\"doseAnother(); return true;\" />
-				<input type=\"button\" id=\"noMistakeButton\" value=\"Dosed Correctly\" onClick=\"window.location = '".( $_REQUEST['return'] == 'manage' ? "manage.php?id=".$_REQUEST['patient'] : "module_loader.php?module=".get_class($this)."&patient=".$_REQUEST['patient'] )."'; return true;\" /></td>
-			</tr>
-			</table>
-			</div> <!-- stageThree -->
-			</center>
-			<script language=\"javascript\">
-			function doseAnother ( ) {
-				document.getElementById('dispenseButton').disabled = false;
-				document.getElementById('stageTwo').style.display = 'none';
-				document.getElementById('stageThree').style.display = 'none';
-				document.getElementById('message').innerHTML = '';
-				document.getElementById('message').style.backgroundColor = '#cccccc';
-				document.getElementById('id').value = 0;
-
-				// Reload the schedule, forced
-				x_module_html('doseplan', 'ajax_display_dose_plan', document.getElementById('doseplanid').value, x_dosePlanDiv_expand_div);
-			}
-			function recordBottles ( ) {
-				var doseplan = document.getElementById('doseplanid').value;
-				var given = document.getElementById('doseplantakehomecountgiven').value;
-				var returned = document.getElementById('doseplantakehomecountreturned').value;
-				document.getElementById('bottlesButton').disabled = true;
-				x_module_html('dose', 'ajax_recordBottles', doseplan + '##' + given + '##' + returned , updateRecordBottles);
-			}
-			function updateRecordBottles ( value ) {
-				if ( value == 1 ) {
-					alert('Updated bottle counts.');
-				} else {
-					alert('Failed to update bottle counts.');
-				}
-				document.getElementById('bottlesButton').disabled = false;
-			}
-			function recordMistake ( ) {
-				var id = document.getElementById('id').value;
-				var comment = document.getElementById('dosecomment').value;
-				var poured = document.getElementById('dosepouredunits').value;
-				var prepared = document.getElementById('dosepreparedunits').value;
-				var btlid = document.getElementById('btlno').value;
-
-				// A sanity clause?
-				if ( comment.length < 3 ) {
-					alert('You must specify a reason for the dose failing.');
-					return false;
-				}
-
-				// Avoid duplicate clicks
-				document.getElementById('mistakeButton').disabled = true;
-				// XmlHttpRequest send
-				x_module_html('dose', 'ajax_recordMistake', id + '##' + poured + '##' + prepared + '##' + comment + '##' + btlid, updateRecordMistake);
-			}
-			
-			function updateRecordMistake ( value ) {
-				var pouragain = document.getElementById('pouragain').checked;
-				
-				if ( pouragain ) {
-					// Enable dispense button, etc
-					document.getElementById('dispenseButton').disabled = false;
-					document.getElementById('dosedalready').innerHTML = 'Mistake Dosing';
-					document.getElementById('stageThree').style.display = 'none';
-					document.getElementById('message').innerHTML = '';
-					document.getElementById('message').style.backgroundColor = '#cccccc';
-					document.getElementById('mistakeButton').disabled = false;					
-				} else {
-					// Kick to another window
-					//window.location = '".( $_REQUEST['return'] == 'manage' ? "manage.php?id=".$_REQUEST['patient'] : "module_loader.php?module=".get_class($this)."&patient=".$_REQUEST['patient'] )."';
-				}
-			}
-			</script>
-		";
+                ob_start();
+                include_once ('dosing_wizard.php');
+                $GLOBALS['display_buffer'] .= ob_get_contents();
+                ob_end_clean();
+		return true;
 	} // end method addform
 
 	function view ( ) {
@@ -609,8 +312,6 @@ class Dose extends EMRModule {
 			'dosemedicationtype' => $dp['doseplantype'],
 			'dosebottleid' => $station_rec['dsbottle'],
 			//'dosemedicationdispensed',
-			//'dosepouredunits',
-			//'dosepreparedunits',
 		);
 		if ($code == 0) {
 			syslog(LOG_INFO, "dispenseDose| successful, inserting");
@@ -623,7 +324,7 @@ class Dose extends EMRModule {
 			$res = $GLOBALS['sql']->query ( $q );
 			$id = $GLOBALS['sql']->last_record( $res, $this->table_name );
 			// update the "used" quantity
-			$usedq = $GLOBALS['sql']->query("UPDATE lotreceipt SET lotrecbottleused=lotrecbottleused+'".addslashes($units)."' WHERE id = '".addslashes($botno)."'");
+			$usedq = $GLOBALS['sql']->query("UPDATE lotreceipt SET lotrecqtyremain=lotrecqtyremain-'".addslashes($units)."' WHERE id = '".addslashes($botno)."'");
 			$x = $this->sendCommandToPump( $station, str_pad($units, 3 , "0",STR_PAD_LEFT) );
 			// print a label ...
 			$patientObject = CreateObject('_FreeMED.Patient', $patient);
@@ -681,7 +382,7 @@ class Dose extends EMRModule {
 
 	function ajax_changeBottle ( $blob ) {
 		list ( $station, $lotid, $btlid ) = explode ( ',', $blob );
-		$changeq = "UPDATE dosingstation SET dsbottle='".addslashes($btlid).", dslot='".addslashes($lotid)."' WHERE id='".addslashes($station)."'";
+		$changeq = "UPDATE dosingstation SET dsbottle='".addslashes($btlid)."', dslot='".addslashes($lotid)."' WHERE id='".addslashes($station)."'";
 		$GLOBALS['sql']->query($changeq);
 		return true;
 	} // end ajax_changeBottle
@@ -749,19 +450,18 @@ class Dose extends EMRModule {
 
 	function ajax_recordMistake ( $blob ) {
 		//print $blob;
-		list ( $id, $poured, $prepared, $comment, $btlid ) = explode ( '##', $blob );
+		list ( $id, $units, $comment, $btlid ) = explode ( '##', $blob );
 		$q = $GLOBALS['sql']->update_query(
 			$this->table_name,
 			array (
 				'dosegiven' => 2,
-				'dosepreparedunits' => $prepared,
-				'dosepouredunits' => $poured,
+				'doseunits' => $units,
 				'dosecomment' => $comment,
 				'dosebottleid' => $btlid
 			), array ( 'id' => $id )
 		);
-		// update the "used" quantity; TODO what do we add for units? difference between prepared and poured?
-		//$usedq = $GLOBALS['sql']->query("UPDATE lotreceipt SET lotrecbottleused=lotrecbottleused+'".addslashes($units)."' WHERE id = '".addslashes($btlid)."'");
+		// update the "used" quantity
+		$usedq = $GLOBALS['sql']->query("UPDATE lotreceipt SET lotrecbottleused=lotrecbottleused+'".addslashes($units)."' WHERE id = '".addslashes($btlid)."'");
 		return $GLOBALS['sql']->query( $q );
 	} // end ajax_recordMistake
 	
@@ -786,6 +486,18 @@ class Dose extends EMRModule {
 	function SaveSession ( $hash ) {
 		list ( $_SESSION['dosing']['dosingstation'], $_SESSION['dosing']['txtLotNo'], $_SESSION['dosing']['btlno'] ) = explode( ',', $hash );
 		return true;
+	}
+
+	function _update ( ) { 
+		$version = freemed::module_version($this->MODULE_NAME);
+                // Version 0.2
+		//
+		//      Removed dose{poured,prepared}units.
+		//
+		if (! version_check($version, '0.2')) {
+			$GLOBALS['sql']->query ( "ALTER TABLE ".$this->table_name." DROP COLUMN dosepreparedunits" );
+			$GLOBALS['sql']->query ( "ALTER TABLE ".$this->table_name." DROP COLUMN dosepouredunits" );
+		}
 	}
 
 } // end class Dose

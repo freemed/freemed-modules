@@ -2,7 +2,6 @@
   // $Id$
   //
   // Authors:
-  //      Hardik
   //      Adam Buchbinder <adam.buchbinder@gmail.com>
   //
   // Copyright (C) 1999-2006 FreeMED Software Foundation
@@ -23,13 +22,13 @@
 
 LoadObjectDependency('_FreeMED.MaintenanceModule');
 
-class DoseHoldRep extends MaintenanceModule {
-	var $MODULE_NAME = "DoseHoldRep";
+class DoseHoldExcRep extends MaintenanceModule {
+	var $MODULE_NAME = "DoseHoldExcRep";
 	var $MODULE_VERSION = "0.1";
 
 	var $MODULE_FILE = __FILE__;
 
-	var $record_name = 'Dose Hold Report';
+	var $record_name = 'Dose Hold Exception Report';
 	var $table_name = 'dosehold';		// need to change
 	var $order_by = 'id';
 //	var $widget_hash = "##id## ##lotrecno## (##id## ##lotrecno##)";
@@ -40,7 +39,7 @@ class DoseHoldRep extends MaintenanceModule {
 
 		// Set associations
 		$this->MaintenanceModule();
-	} // end constructor DoseHoldRep
+	} // end constructor DoseHoldExcRep
 
 	function view ( ) {
 		global $sql; global $display_buffer; global $patient;
@@ -81,14 +80,20 @@ class DoseHoldRep extends MaintenanceModule {
 	
 	function DisplayReport($date)
 	{
-		$sqlquery="Select dosehold.*,ptid,userdescrip
-			FROM dosehold 
-			LEFT JOIN patient ON dosehold.doseholdpatient = patient.id
-			LEFT JOIN user ON dosehold.doseholduser = user.id
-			WHERE Date(doseholdstamp) < '".addslashes($date)."'
+		$loc = $_SESSION['default_facility'];
+		$sqlquery="SELECT ptlname,ptfname,ptmname,ptid,doseholdtype,DATE(doseholdstamp) AS dhdate,userdescrip,doseholdcomment
+			FROM doserecord 
+			LEFT JOIN dosehold ON dosehold.doseholdpatient = doserecord.dosepatient
+			LEFT JOIN patient ON doserecord.dosepatient = patient.id
+			LEFT JOIN dosingstation ON doserecord.dosestation = dosingstation.id
+			LEFT JOIN user ON doseholduser = user.id
+			WHERE DATE(dosegivenstamp) = '".addslashes($date)."'
+			AND dsfacility = '".addslashes($loc)."'
 			AND doseholdstatus = 1
-			ORDER BY ptid
+			AND doseholdstamp < dosegivenstamp
+			ORDER BY ptlname,ptfname,ptmname
 			";
+		// TODO implement/add "AND doseholdendstamp > dosegivenstamp"
 
 		$result= $GLOBALS['sql']->query($sqlquery);
 			$retval=" 
@@ -99,6 +104,7 @@ class DoseHoldRep extends MaintenanceModule {
 					</tr>
 					<tr>
 						<th align=\"left\">Client</th>
+						<th align=\"left\">ID</th>
 						<th align=\"left\">Type of Hold</th>
 						<th align=\"left\">Placed By</th>
 						<th align=\"left\">Placed On</th>
@@ -114,15 +120,16 @@ class DoseHoldRep extends MaintenanceModule {
 						$type = "Soft Dose";
 						break;
 					case 2:
-						$type = "Hard Dose";					
+						$type = "Hard Dose";				
 						break;
 				}
 				$retval .="
 					<tr>
 						<td align=\"left\">".$row['ptid']."</td>
+						<td align=\"left\">$row[ptlname], $row[ptfname] $row[ptmname]</td>
 						<td align=\"left\">".$type."</td>
 						<td align=\"left\">".$row['userdescrip']."</td>
-						<td align=\"left\">".date("Y-m-d", strtotime($row['doseholdstamp']))."</td>
+						<td align=\"left\">".$row['dhdate']."</td>
 						<td align=\"left\">".$row['doseholdcomment']."</td>
 					</tr>	
 					";
@@ -137,12 +144,12 @@ class DoseHoldRep extends MaintenanceModule {
 	function viewrep_link () {
 		return "
 		<a HREF=\"module_loader.php?module=".
-		get_class($this)."&action=view&return=reports\">Dosehold Report</a>
+		get_class($this)."&action=view&return=reports\">Dosehold Exception Report</a>
 		";
 	} // end function summary_bar
 
-} // end class DoseHoldRep
+} // end class DoseHoldExcRep
 
-register_module("DoseHoldRep");
+register_module("DoseHoldExcRep");
 
 ?>

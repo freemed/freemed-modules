@@ -3,6 +3,7 @@
   //
   // Authors:
   //      Hardik
+  //      Adam Buchbinder <adam.buchbinder@gmail.com>
   //
   // Copyright (C) 1999-2006 FreeMED Software Foundation
   //
@@ -20,9 +21,9 @@
   // along with this program; if not, write to the Free Software
   // Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
-LoadObjectDependency('_FreeMED.EMRModule');
+LoadObjectDependency('_FreeMED.MaintenanceModule');
 
-class DoseplanRep extends EMRModule {
+class DoseplanRep extends MaintenanceModule {
 	var $MODULE_NAME = "DoseplanRep";
 	var $MODULE_VERSION = "0.1";
 
@@ -38,7 +39,7 @@ class DoseplanRep extends EMRModule {
 		if (!is_object($GLOBALS['this_user'])) { $GLOBALS['this_user'] = CreateObject('_FreeMED.User'); }		
 
 		// Set associations
-		$this->EMRModule();
+		$this->MaintenanceModule();
 	} // end constructor Lot
 	
 
@@ -62,7 +63,7 @@ class DoseplanRep extends EMRModule {
 				}
 				function showreport(){
 					document.getElementById('doseplanreport').innerHTML = 'Loading...';
-					x_module_html('DoseplanRep', 'DisplayReport', document.getElementById('txtdate').value, showrep);
+					x_module_html('DoseplanRep', 'DisplayReport', document.getElementById('txtdate_cal').value, showrep);
 				}
 			</script>
 			<table width=100% cellspacing=0 cellpadding=0>
@@ -115,23 +116,27 @@ class DoseplanRep extends EMRModule {
 						<td align=\"right\"><b>Cli#</b></td>
 						<td align=\"left\"><b>Remarks</b></td>
 					</tr>";
-		$sqlquery="select * from doseplan where doseplaneffectivedate='".$date."'";
+		$sqlquery="SELECT doseplan.*,ptlname,ptfname,ptmname,ptid,userdescrip, ".
+			"FIND_IN_SET(DATE_FORMAT('".addslashes($date)."', '%w'), doseplantakehomesched) AS takehome ".
+			"FROM doseplan ".
+				"LEFT JOIN patient ON doseplanpatient=patient.id ".
+				"LEFT JOIN user ON doseplanuser=user.id ".
+			"WHERE doseplanstartdate >= '".addslashes($date)."' ".
+			"HAVING takehome = 0 ".
+			"ORDER BY ptlname,ptfname,ptmname";
 		$result= $GLOBALS['sql']->query($sqlquery);
 		if(mysql_num_rows($result)>0)
 		{
 			$total=0;
 			while($row=$GLOBALS['sql']->fetch_array($result))
 			{
-				$patientquery="select ptlname from patient where id=".$row['doseplanpatient'];
-				$patientresult= $GLOBALS['sql']->query($patientquery);
-				$patientrow=$GLOBALS['sql']->fetch_array($patientresult);
 				$retval.="
 						<tr>
-							<td align='left'>". $patientrow['ptlname'] ."</td>
-							<td align='left'>". $row[''] ."</td>
+							<td align='left'>$row[ptlname], $row[ptfname] $row[ptmname]</td>
+							<td align='left'>". $row['userdescrip'] ."</td>
 							<td align='right'>". $row['doseplandose'] ."</td>
-							<td align='right'>". $row['doseplanpatient'] ."</td>
-							<td align='left'>". $row['doseplancomment'] ." ". $row['doseplantakehomecountgiven'] ." ". $row['doseplantype'] ."</td>
+							<td align='right'>". $row['ptid'] ."</td>
+							<td align='left'>". $row['doseplancomment'] ."</td>
 						</tr>";
 				$total+=$row['doseplandose'];
 			}
@@ -159,7 +164,7 @@ class DoseplanRep extends EMRModule {
 		";
 	} // end function summary_bar
 
-} // end class ReconcileRep
+} // end class DoseplanRep
 
 register_module("DoseplanRep");
 

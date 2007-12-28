@@ -40,8 +40,19 @@ class ReconcileRep extends EMRModule {
 
 		// Set associations
 		$this->EMRModule();
-	} // end constructor Lot
-	
+
+		$this->_SetHandler('DosingFunctions', 'closeDosingStationWizard');
+		$this->_SetMetaInformation('DosingFunctionName', __("Close Dosing Station"));
+		$this->_SetMetaInformation('DosingFunctionDescription', __("Close dosing station.") );
+	} // end constructor ReconcileRep
+
+	function closeDosingStationWizard() {
+		ob_start();
+		include_once ('close_dosing_station.php');
+		$GLOBALS['display_buffer'] .= ob_get_contents();
+		ob_end_clean();
+		return true;
+	}
 
 	function view ( ) {
 		global $sql; global $display_buffer; global $patient;
@@ -120,10 +131,10 @@ class ReconcileRep extends EMRModule {
 						</tr>
 						<tr>
 							<td></td>
-							<td>=========</td>
+							<td><hr/></td>
 						</tr>
 						<tr>
-							<td><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Net Amount Available for Use :</td>
+							<td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Net Amount Available for Use :</td>
 							<td align='right'>". ($row['rec_qty_initial'] + $row['rec_qty_tr_out'] - $row['rec_qty_tr_in']) ."</td>
 						</tr>
 						<tr>
@@ -140,7 +151,7 @@ class ReconcileRep extends EMRModule {
 						</tr>
 						<tr>
 							<td></td>
-							<td>=========</td>
+							<td><hr/></td>
 						</tr>
 						<tr>
 							<td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Net Amount Remaining in Bottle :</td>

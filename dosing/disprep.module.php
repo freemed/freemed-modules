@@ -21,26 +21,27 @@
   // along with this program; if not, write to the Free Software
   // Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
-LoadObjectDependency('_FreeMED.MaintenanceModule');
+LoadObjectDependency('_FreeMED.EMRModule');
 
-class DoseHoldRep extends MaintenanceModule {
-	var $MODULE_NAME = "DoseHoldRep";
+class DispensingRep extends EMRModule {
+	var $MODULE_NAME = "DispensingRep";
 	var $MODULE_VERSION = "0.1";
 
 	var $MODULE_FILE = __FILE__;
 
-	var $record_name = 'Dose Hold Report';
-	var $table_name = 'dosehold';		// need to change
+	var $record_name = 'Daily Dispensing Report';
+	var $table_name = 'doserecord';		// need to change
 	var $order_by = 'id';
 //	var $widget_hash = "##id## ##lotrecno## (##id## ##lotrecno##)";
 	var $widget_hash = "##id## [##lotrecbottleno ##]";
 	
-	function DoseHoldRep ( ) {
+	function DispensingRep ( ) {
 		if (!is_object($GLOBALS['this_user'])) { $GLOBALS['this_user'] = CreateObject('_FreeMED.User'); }		
 
 		// Set associations
-		$this->MaintenanceModule();
-	} // end constructor DoseHoldRep
+		$this->EMRModule();
+	} // end constructor Lot
+	
 
 	function view ( ) {
 		global $sql; global $display_buffer; global $patient;
@@ -55,7 +56,7 @@ class DoseHoldRep extends MaintenanceModule {
 				}
 				function showreport(){
 					document.getElementById('recreport').innerHTML = 'Loading...';
-					x_module_html('".get_class($this)."', 'DisplayReport', document.getElementById('txtrptdate_cal').value, showrep);
+					x_module_html('DispensingRep', 'DisplayReport', document.getElementById('txtrptdate_cal').value, showrep);
 				}
 				function showrep( value ){
 					//alert(value);
@@ -81,49 +82,42 @@ class DoseHoldRep extends MaintenanceModule {
 	
 	function DisplayReport($date)
 	{
-		$sqlquery="Select dosehold.*,ptid,userdescrip
-			FROM dosehold 
-			LEFT JOIN patient ON dosehold.doseholdpatient = patient.id
-			LEFT JOIN user ON dosehold.doseholduser = user.id
-			WHERE Date(doseholdstamp) < '".addslashes($date)."'
-			AND doseholdstatus = 1
-			ORDER BY ptid
-			";
-
+		$sqlquery="SELECT doserecord.*, ptlname, ptfname, userdescrip
+			FROM doserecord
+				LEFT JOIN patient ON doserecord.dosepatient = patient.id
+				LEFT JOIN user ON user.id = doserecord.dosegivenuser 
+			WHERE date(doserecord.dosegivenstamp) = '".date('Y-m-d',strtotime($date))."'
+				AND dosegiven='1'
+			ORDER BY dosegivenstamp";
 		$result= $GLOBALS['sql']->query($sqlquery);
-			$retval=" 
+			$retval="
 				<table cellspacing=0 cellpadding=3 width=100%>
 					<tr>
 						<td> ".date('Y-m-d')."</td>
-						<td colspan=6 align=center> CODAC II <br> Dosing Holds Report For $date </td>
+						<td colspan=6 align=center> CODAC II <br> Final Dispensing Log for Main Dispensary </td>
 					</tr>
 					<tr>
-						<th align=\"left\">Client</th>
-						<th align=\"left\">Type of Hold</th>
-						<th align=\"left\">Placed By</th>
-						<th align=\"left\">Placed On</th>
-						<th align=\"left\">Description</th>
+						<th align=\"left\">Dispensed</th>
+						<th align=\"left\">Client Name</th>
+						<th align=\"left\">Dose Date</th>
+						<th align=\"left\">Type</th>
+						<th align=\"left\">Units</th>
+						<th align=\"left\">Med Type</th>
+						<th align=\"left\">Nurse</th>
 					</tr>	
 					";
 			while ($row=$GLOBALS['sql']->fetch_array($result)) {
-				switch ($row['doseholdtype']){
-					case 0:
-						$type = "None";
-						break;
-					case 1:
-						$type = "Soft Dose";
-						break;
-					case 2:
-						$type = "Hard Dose";					
-						break;
-				}
+				if (date('Y-m-d',strtotime($row['dosegivenstamp'])) != date('Y-m-d',strtotime($row['doseassigneddate'])))
+					$takehome = "Take-home";
 				$retval .="
 					<tr>
-						<td align=\"left\">".$row['ptid']."</td>
-						<td align=\"left\">".$type."</td>
-						<td align=\"left\">".$row['userdescrip']."</td>
-						<td align=\"left\">".date("Y-m-d", strtotime($row['doseholdstamp']))."</td>
-						<td align=\"left\">".$row['doseholdcomment']."</td>
+						<td>".date('Y-m-d',strtotime($row['dosegivenstamp']))."</td>
+						<td>".$row['ptlname']." ".$row['ptfname']."</td>
+						<td>".date('Y-m-d',strtotime($row['doseassigneddate']))."</td>
+						<td>".$takehome."</td>
+						<td>".$row['doseunits']."</td>
+						<td>".$row['dosemedicationtype']."</td>
+						<td>".$row['userdescrip']."</td>
 					</tr>	
 					";
 			}
@@ -137,12 +131,12 @@ class DoseHoldRep extends MaintenanceModule {
 	function viewrep_link () {
 		return "
 		<a HREF=\"module_loader.php?module=".
-		get_class($this)."&action=view&return=reports\">Dosehold Report</a>
+		get_class($this)."&action=view&return=reports\">Daily Dispensing Report</a>
 		";
 	} // end function summary_bar
 
-} // end class DoseHoldRep
+} // end class ReconcileRep
 
-register_module("DoseHoldRep");
+register_module("DispensingRep");
 
 ?>

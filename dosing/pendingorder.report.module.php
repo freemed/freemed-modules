@@ -21,26 +21,27 @@
   // along with this program; if not, write to the Free Software
   // Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
-LoadObjectDependency('_FreeMED.MaintenanceModule');
+LoadObjectDependency('_FreeMED.EMRModule');
 
-class DoseHoldRep extends MaintenanceModule {
-	var $MODULE_NAME = "DoseHoldRep";
+class PendingOrder extends EMRModule {
+	var $MODULE_NAME = "PendingOrder";
 	var $MODULE_VERSION = "0.1";
 
 	var $MODULE_FILE = __FILE__;
 
-	var $record_name = 'Dose Hold Report';
-	var $table_name = 'dosehold';		// need to change
+	var $record_name = 'Lots Management';
+	var $table_name = 'doseplan';		// need to change
 	var $order_by = 'id';
 //	var $widget_hash = "##id## ##lotrecno## (##id## ##lotrecno##)";
 	var $widget_hash = "##id## [##lotrecbottleno ##]";
 	
-	function DoseHoldRep ( ) {
+	function PendingOrder ( ) {
 		if (!is_object($GLOBALS['this_user'])) { $GLOBALS['this_user'] = CreateObject('_FreeMED.User'); }		
 
 		// Set associations
-		$this->MaintenanceModule();
-	} // end constructor DoseHoldRep
+		$this->EMRModule();
+	} // end constructor Lot
+	
 
 	function view ( ) {
 		global $sql; global $display_buffer; global $patient;
@@ -53,13 +54,16 @@ class DoseHoldRep extends MaintenanceModule {
 				function redirect(){
 					window.location='http://$host$uri/$extra';
 				}
-				function showreport(){
-					document.getElementById('recreport').innerHTML = 'Loading...';
-					x_module_html('".get_class($this)."', 'DisplayReport', document.getElementById('txtrptdate_cal').value, showrep);
-				}
 				function showrep( value ){
 					//alert(value);
 					document.getElementById('recreport').innerHTML = value;
+				}
+				function showreport(){
+					document.getElementById('recreport').innerHTML = 'Loading...';
+					var arr = Array();
+					arr[0] = document.getElementById('txtrptdate_cal').value;
+					arr[1] = 0; // for every day after today
+					x_module_html('DailyPostedOrder', 'DisplayReport', arr, showrep);
 				}
 			</script>
 			<table width=100% cellspacing=0 cellpadding=0>
@@ -79,70 +83,16 @@ class DoseHoldRep extends MaintenanceModule {
 //		return $retval;
 	}
 	
-	function DisplayReport($date)
-	{
-		$sqlquery="Select dosehold.*,ptid,userdescrip
-			FROM dosehold 
-			LEFT JOIN patient ON dosehold.doseholdpatient = patient.id
-			LEFT JOIN user ON dosehold.doseholduser = user.id
-			WHERE Date(doseholdstamp) < '".addslashes($date)."'
-			AND doseholdstatus = 1
-			ORDER BY ptid
-			";
-
-		$result= $GLOBALS['sql']->query($sqlquery);
-			$retval=" 
-				<table cellspacing=0 cellpadding=3 width=100%>
-					<tr>
-						<td> ".date('Y-m-d')."</td>
-						<td colspan=6 align=center> CODAC II <br> Dosing Holds Report For $date </td>
-					</tr>
-					<tr>
-						<th align=\"left\">Client</th>
-						<th align=\"left\">Type of Hold</th>
-						<th align=\"left\">Placed By</th>
-						<th align=\"left\">Placed On</th>
-						<th align=\"left\">Description</th>
-					</tr>	
-					";
-			while ($row=$GLOBALS['sql']->fetch_array($result)) {
-				switch ($row['doseholdtype']){
-					case 0:
-						$type = "None";
-						break;
-					case 1:
-						$type = "Soft Dose";
-						break;
-					case 2:
-						$type = "Hard Dose";					
-						break;
-				}
-				$retval .="
-					<tr>
-						<td align=\"left\">".$row['ptid']."</td>
-						<td align=\"left\">".$type."</td>
-						<td align=\"left\">".$row['userdescrip']."</td>
-						<td align=\"left\">".date("Y-m-d", strtotime($row['doseholdstamp']))."</td>
-						<td align=\"left\">".$row['doseholdcomment']."</td>
-					</tr>	
-					";
-			}
-									
-			$retval .= "
-				</table>
-					";
-				return $retval;
-	}
+	// DisplayReport is performed by passing a parameter to DailyPostedOrder's DisplayReport function
 
 	function viewrep_link () {
 		return "
 		<a HREF=\"module_loader.php?module=".
-		get_class($this)."&action=view&return=reports\">Dosehold Report</a>
+		get_class($this)."&action=view&return=reports\">Pending Doctor's Order Register</a>
 		";
 	} // end function summary_bar
 
-} // end class DoseHoldRep
+} // end class ReconcileRep
 
-register_module("DoseHoldRep");
-
+register_module("PendingOrder");
 ?>

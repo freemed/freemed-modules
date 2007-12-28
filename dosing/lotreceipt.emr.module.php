@@ -3,6 +3,7 @@
   //
   // Authors:
   //      Hardik
+  //      Adam Buchbinder <adam.buchbinder@gmail.com>
   //
   // Copyright (C) 1999-2006 FreeMED Software Foundation
   //
@@ -101,6 +102,8 @@ class LotReceipt extends MaintenanceModule {
 				'txtDate', 
 				'txtLotNo',
 				'txtSite',
+				'txtBulk',
+				'txtBulkGrams',
 				'txtlotno',
 				'txt20k',
 				'txt40k',
@@ -116,6 +119,8 @@ class LotReceipt extends MaintenanceModule {
 				'txtDate', 
 				'txtLotNo',
 				'txtSite',
+				'txtBulk',
+				'txtBulkGrams',
 				'txt20k',
 				'txt40k',
 				'lotrecbottleno',
@@ -137,6 +142,8 @@ class LotReceipt extends MaintenanceModule {
 			$this->variables = array(
 				'lotrecdate' => $_POST['txtDate'],
 				'lotrecno' => $_POST['txtLotNo'],
+				'lotbulk' => $_POST['txtBulk'],
+				'lotbulkgrams' => $_POST['txtBulkGrams'],
 				'lotstatus' => 'open',
 				'lotcreateddate' => date('Y-m-d')
 			);
@@ -144,6 +151,8 @@ class LotReceipt extends MaintenanceModule {
 				'lotreg',
 				$this->variables
 			);
+			// update the bulk batch
+			$GLOBALS['sql']->query("UPDATE bulkmethadone SET bulk_used_qty = bulk_used_qty + ".addslashes($_POST['txtBulkGrams'])." WHERE id=".addslashes($_POST['txtBulk']));
 		
 			$result = $GLOBALS['sql']->query($query);			
 			$q = $GLOBALS['sql']->query("SELECT id FROM lotreg WHERE lotrecno = '".addslashes($_POST['txtLotNo'])."'");
@@ -208,7 +217,7 @@ class LotReceipt extends MaintenanceModule {
 		global $patient;		
 
 		$display_buffer = freemed_display_itemlist (
-			$sql->query("SELECT lotreg.lotrecno,lotreg.lotrecdate,sum(`lotrec20k`) + sum(`lotrec40k`) totbottles FROM lotreg, lotreceipt WHERE lotreceipt.lotrecno = lotreg.id GROUP BY lotreg.id"),
+			$sql->query("SELECT lotreg.lotrecno,lotreg.lotrecdate,COUNT(*) totbottles FROM lotreg, lotreceipt WHERE lotreceipt.lotrecno = lotreg.id GROUP BY lotreg.id"),
 			$this->page_name,
 			array(
 				__("Date") =>	"lotrecdate",
@@ -239,6 +248,14 @@ class LotReceipt extends MaintenanceModule {
 				  <tr> 
 					<td align=\"left\" class=\"top-data\">Site</td>
 					<td>".module_function('facilitymodule', 'widget', array('txtSite'))."</td>
+				  </tr>
+				  <tr> 
+					<td align=\"left\" class=\"top-data\">Bulk Batch</td>
+					<td>".module_function('bulkmethadone', 'widget', array('txtBulk'))."</td>
+				  </tr>
+				  <tr>
+					<td align=\"left\" class=\"top-data\">Bulk Grams Used</td>
+					<td><input type=\"text\" name=\"txtBulkGrams\" value=\"0\"></td>
 				  </tr>
 				  <tr class=\"menuBar\">
 				  	<td colspan=2 align=\"center\" class=\"top-data\">Bottle Preparation</td>
@@ -286,7 +303,6 @@ class LotReceipt extends MaintenanceModule {
 			  <td><strong>Sr.</strong></td>
 			  <td><strong>Bottle No.</strong></td>
 			  <td><strong>Bottle Qty.</strong></td>			  
-			  <td><strong>Bulk Ref. No</strong></td>			  			  
 			  <td><strong>Manufacturer Date</strong></td>
 			  <td><strong>Expiry Date</strong></td>
 			</tr>
@@ -303,7 +319,6 @@ class LotReceipt extends MaintenanceModule {
 					  <td> $i. </td>
 					  <td><input type=\"text\" name=\"txtbottleno1_$i\"></td>
 					  <td><input type=\"text\" name=\"txtbottleqty_$i\" value=\"$qty\"></td>
-					  <td>".module_function('lotmgt', 'getSupplNo', array('lstsupplno_'.$i))."</td>
 					  <td>".fm_date_entry("txtmanfdate1_$i")."</td>
 					  <td>".fm_date_entry("txtexpdate1_$i")."</td>
 					</tr>";
