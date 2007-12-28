@@ -47,9 +47,8 @@ $btlno = $_SESSION['dosing']['btlno'];
 <script language="javascript">
 	dojo.require("dojo.io.*");
 	dojo.require("dojo.widget.Dialog");
-	dojo.require("dojo.widget.DropdownDatePicker");
 	dojo.require("dojo.widget.Wizard");
-	dojo.require("dojo.widget.Tooltip");
+	//dojo.require("dojo.widget.Tooltip");
 
 	var dw = {
 		onCancel: function ( ) {
@@ -60,6 +59,21 @@ $btlno = $_SESSION['dosing']['btlno'];
 			var station = document.getElementById( 'dosingstation' ).value;
 			// Set up blocker
 			dojo.widget.byId( 'settingDialog' ).show();
+			// Get bottle ID so we can reconcile that bottle
+			var bottle;
+			dojo.io.bind({
+				method: 'GET',
+				url: 'json-relay-0.8.x.php?module=dosingstation&method=ajax_getCurrentBottle&param[]=' + station,
+				load: function( type, data, evt ) {
+					if ( data ) {
+						bottle = data; // all good
+					} else {
+						alert('Failed to retrieve bottle ID for reconciliation. Please reconcile manually.');
+					}
+				},
+				mimetype: 'text/json',
+				sync: true
+			});
 			// Set pump to closed
 			dojo.io.bind({
 				method: 'GET',
@@ -77,7 +91,8 @@ $btlno = $_SESSION['dosing']['btlno'];
 				sync: true
 			});
 
-			window.location = 'dosing_functions.php';
+			//window.location = 'dosing_functions.php';
+			window.location = 'dosing_functions.php?action=type&type=reconcilebottle&bottle='+bottle;
 			//history.go(-1); // go back from where you came ...
 		},
 		onClearSession: function ( ) {
@@ -108,13 +123,11 @@ $btlno = $_SESSION['dosing']['btlno'];
 	
 	dojo.addOnLoad(function() {
 		dojo.event.connect( dojo.widget.byId( 'closeDosingStationContainer' ), 'cancelFunction', dw, 'onCancel' );
-		dojo.event.connect( dojo.widget.byId( 'handleRemainingPane' ), 'passFunction', dw, 'onHandleRemaining' );
 		dojo.event.connect( dojo.widget.byId( 'dosingFinishedPane' ), 'doneFunction', dw, 'onFinished' );
 	});
 
 	dojo.addOnUnload(function() {
 		dojo.event.disconnect( dojo.widget.byId( 'closeDosingStationContainer' ), 'cancelFunction', dw, 'onCancel' );
-		dojo.event.disconnect( dojo.widget.byId( 'handleRemainingPane' ), 'passFunction', dw, 'onHandleRemaining' );
 		dojo.event.disconnect( dojo.widget.byId( 'dosingFinishedPane' ), 'doneFunction', dw, 'onFinished' );
 	});
 
@@ -127,9 +140,9 @@ $btlno = $_SESSION['dosing']['btlno'];
  nextButtonLabel="Next &gt; &gt;" previousButtonLabel="&lt; &lt; Previous"
  cancelButtonLabel="Cancel" doneButtonLabel="Done">
 
-	<div dojoType="WizardPane" label="Select Dosing Station (1/?)" id="selectStationPane" passFunction="pass_selectStationPane">
+	<div dojoType="WizardPane" label="Select Dosing Station (1/2)" id="selectStationPane" passFunction="pass_selectStationPane">
 
-		<h1>Select Dosing Station (1/?)</h1>
+		<h1>Select Dosing Station (1/2)</h1>
 
                 <p>
                         <i>Please select a dosing station if the station presented is
@@ -146,8 +159,8 @@ $btlno = $_SESSION['dosing']['btlno'];
 
 	</div>
 
-	<div dojoType="WizardPane" id="dosingFinishedPane" label="Clean Pump (?/?)" canGoBack="false">
-		<h1>Clearing Pump (?/?)</h1>
+	<div dojoType="WizardPane" id="dosingFinishedPane" label="Clean Pump (2/2)">
+		<h1>Clearing Pump (2/2)</h1>
 
 		<p><i>Please click "Done" to exit the wizard.</i></p>
 

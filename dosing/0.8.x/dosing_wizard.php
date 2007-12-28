@@ -201,6 +201,7 @@ if ( $_REQUEST['patient'] ) { global $dosepatient; $dosepatient = $_REQUEST['pat
 					if ( data > 0 ) {
 						// All good, continue
 						dojo.byId( 'doseunits' ).innerHTML = data;
+						dojo.byId( 'doseunits2' ).innerHTML = data;
 					} else {
 						returnVal = "No dose is scheduled for the date selected.";
 					}
@@ -269,8 +270,7 @@ if ( $_REQUEST['patient'] ) { global $dosepatient; $dosepatient = $_REQUEST['pat
 		onRecordMistake: function ( ) {
 			var id = dw.doseId;
 			var comment = document.getElementById('dosecomment').value;
-			var poured = document.getElementById('dosepouredunits').value;
-			var prepared = document.getElementById('dosepreparedunits').value;
+			var units = parseInt( document.getElementById('doseunits').innerHTML );
 			// A sanity clause?
 			if ( comment.length < 3 ) {
 				alert('You must specify a reason for the dose failing.');
@@ -279,7 +279,7 @@ if ( $_REQUEST['patient'] ) { global $dosepatient; $dosepatient = $_REQUEST['pat
 			// Avoid duplicate clicks
 			document.getElementById('mistakeButton').disabled = true;
 			// XmlHttpRequest send
-			var hash = id + '##' + poured + '##' + prepared + '##' + comment;
+			var hash = id + '##' + units + '##' + comment;
 			dojo.io.bind({
 				method: 'GET',
 				url: 'json-relay-0.8.x.php?module=dose&method=ajax_recordMistake&param[]=' + hash,
@@ -397,13 +397,8 @@ if ( $_REQUEST['patient'] ) { global $dosepatient; $dosepatient = $_REQUEST['pat
 		<table border="0" cellpadding="5" cellspacing="0">
 
                         <tr>
-                                <td align="right">Poured Units</td>
-                                <td><input type="text" name=\dosepouredunits" id="dosepouredunits" value="0" /></td>
-                        </tr>
-
-                        <tr>
-                                <td align="right">Prepared Units</td>
-                                <td><input type="text" name="dosepreparedunits" id="dosepreparedunits" value="0" /></td>
+                                <td align="right">Lost Units</td>
+				<td><span id="doseunits2"></span></td>
                         </tr>
 
                         <tr>

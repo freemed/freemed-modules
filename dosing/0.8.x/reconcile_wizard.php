@@ -52,23 +52,31 @@ global $sql;
 		onMeasure: function ( ) {
 			var id = document.getElementById( 'bottle' ).value;
 			
-			var recorded;
+			var arr;
 			dojo.io.bind({
 				method: 'GET',
-				url: 'json-relay-0.8.x.php?module=lotreceipt&method=getBottleRemain&param[]=' + id,
+				url: 'json-relay-0.8.x.php?module=ReconcileBottle&method=ajax_getFields&param[]=' + id,
 				load: function( type, data, evt ) {
 					if (data)
-						remaining = parseInt( data );
+						arr = data;
 					else
-						alert ("Could not get remaining quantity for bottle "+id);
+						alert ("Could not get fields for bottle "+id);
 				},
 				mimetype: 'text/json',
 				sync: true
 			});
 			var entered = parseInt( document.getElementById( 'quantity' ).value );
 			
-			document.getElementById( 'qty_recorded' ).innerHTML = remaining;
-			document.getElementById( 'qty_entered' ).innerHTML = entered;
+			document.getElementById( 'rec_qty_initial' ).innerHTML = parseInt(arr['rec_qty_initial']);
+			document.getElementById( 'rec_qty_tr_out' ).innerHTML = parseInt(arr['rec_qty_tr_out']);
+			document.getElementById( 'rec_qty_tr_in' ).innerHTML = parseInt(arr['rec_qty_tr_in']);
+			document.getElementById( '_rec_net_available' ).innerHTML = parseInt(arr['rec_qty_initial']) + parseInt(arr['rec_qty_tr_out']) - parseInt(arr['rec_qty_tr_in']);
+			document.getElementById( 'rec_qty_disp' ).innerHTML = parseInt(arr['rec_qty_disp']);
+			document.getElementById( 'rec_qty_disp_takehome' ).innerHTML = parseInt(arr['rec_qty_disp_takehome']);
+			document.getElementById( 'rec_qty_spill' ).innerHTML = parseInt(arr['rec_qty_spill']);
+			document.getElementById( 'rec_qty_final_expected' ).innerHTML = parseInt(arr['rec_qty_final_expected']);
+			document.getElementById( 'rec_qty_final_actual' ).innerHTML = entered;
+			document.getElementById( '_rec_difference' ).innerHTML = parseInt(arr['rec_qty_final_expected']) - entered;
 		},
 		onCancel: function ( ) {
 			alert('Cancelling dose operation as requested.');
@@ -78,7 +86,7 @@ global $sql;
 		onFinished: function ( ) {
 			var bottle = document.getElementById( 'bottle' ).value;
 			var measured = parseInt( document.getElementById( 'quantity' ).value );
-			var reason = parseInt( document.getElementById( 'reason' ).value );
+			var reason = document.getElementById( 'reason' ).value;
                        
 			// Set up blocker
 			dojo.widget.byId( 'reconcileDialog' ).show();
@@ -128,7 +136,14 @@ global $sql;
 
 	<div dojoType="WizardPane" label="Select Bottle (1/4)" id="bottleSelectPane" passFunction="pass_bottleSelectPane">
 		<h1>Select Bottle (1/4)</h1>
-
+<?php
+	if (isset($_GET['bottle']))
+		print '
+		<input type="hidden" name="bottle" id="bottle" value="'.$_GET['bottle'].'"/>
+		<p>Bottle is already selected; please click next to continue.</p>
+		';
+	else
+		print '
 		<p>
 			<i>Please select the bottle to reconcile.</i>
 		</p>
@@ -137,7 +152,7 @@ global $sql;
 
 			<tr>
 				<td align="right">Lot Number</td>
-				<td align="left"><?php print module_function( 'LotReceipt', 'getLotNosForWizard', array ( "lot", "bottle" ) ); ?></td>
+				<td align="left">'.module_function( 'LotReceipt', 'getLotNosForWizard', array ( "lot", "bottle" ) ).'</td>
 			</tr>
 
 			<tr>
@@ -146,7 +161,8 @@ global $sql;
 			</tr>
 
 		</table>
-
+		';
+?>
 	</div>
 
 	<div dojoType="WizardPane" label="Measure Bottle (2/4)" id="measure" passFunction="pass_measurePane">
@@ -164,20 +180,71 @@ global $sql;
 
 	</div>
 
-	<div dojoType="WizardPane" id="explain" label="Explain Discrepancy (3/4)">
-		<h1>Explain Discrepancy (3/4)</h1>
-
-		<p>The system reports that the bottle contains
-		<span id="qty_recorded"><b>??</b></span>, but was measured at 
-		<span id="qty_entered"><b>??</b></span>.
-		Write an explanation for the discrepancy.</p>
+	<div dojoType="WizardPane" id="explain" label="Reconcile (3/4)">
+		<h1>Reconcile (3/4)</h1>
 		
-		<table border="0" cellspacing="0" cellpadding="5">
-			<tr>
-				<td align="right">Explanation</td>
-				<td align="left"><input type="text" id="reason" name="reason" value="" /></td>
-			</tr>
-		</table>
+		<center>Note: All Amounts are in Milligrams</center>
+			<table align='center'>
+				<tr>
+					<td colspan='2'><b>Computer Amounts :</b></td>
+				</tr>
+				<tr>
+					<td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Initial Bottle Contents :</td>
+					<td align='right'><span id="rec_qty_initial">??</span></td>
+				</tr>
+				<tr>
+					<td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Amount Transferred to Other Bottles :</td>
+					<td align='right'><span id="rec_qty_tr_out">??</span></td>
+				</tr>
+				<tr>
+					<td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Amount Transferred from Other Bottles :</td>
+					<td align='right'><span id="rec_qty_tr_in">??</span></td>
+				</tr>
+				<tr>
+					<td></td>
+					<td><hr/></td>
+				</tr>
+				<tr>
+					<td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Net Amount Available for Use :</td>
+					<td align='right'><span id="_rec_net_available">??</span></td>
+				</tr>
+				<tr>
+					<td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Amount Dispensed Today :</td>
+					<td align='right'><span id="rec_qty_disp">??</span></td>
+				</tr>
+				<tr>
+					<td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Amount Dispensed For Take-Home Doses :</td>
+					<td align='right'><span id="rec_qty_disp_takehome">??</span></td>
+				</tr>
+				<tr>
+					<td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Waste (spillage) :</td>
+					<td align='right'><span id="rec_qty_spill">??</span></td>
+				</tr>
+				<tr>
+					<td></td>
+					<td><hr/></td>
+				</tr>
+				<tr>
+					<td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Net Amount Remaining in Bottle :</td>
+					<td align='right'><span id="rec_qty_final_expected">??</span></td>
+				</tr>
+				<tr>
+					<td>&nbsp;</td>
+					<td></td>
+				</tr>
+				<tr>
+					<td>Actual Amount Measured :</td>
+					<td align='right'><span id="rec_qty_final_actual">??</span></td>
+				</tr>
+				<tr>
+					<td>Difference :</td>
+					<td align='right'><span id="_rec_difference">??</span></td>
+				</tr>
+				<tr>
+					<td>Adjustment Posted Reason :</td>
+					<td align='right'><input type="text" id="reason" name="reason" value="" /></td>
+				</tr>
+			</table>
 	</div>
 
 	<div dojoType="WizardPane" id="reconcileFinishedPane" label="Confirm (4/4)">

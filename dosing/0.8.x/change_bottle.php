@@ -78,6 +78,21 @@ $btlno = $_SESSION['dosing']['btlno'];
 				+ btlid;
 			// Set up blocker
 			dojo.widget.byId( 'changeDialog' ).show();
+			// Get bottle ID so we can reconcile that bottle
+			var oldbottle;
+			dojo.io.bind({
+				method: 'GET',
+				url: 'json-relay-0.8.x.php?module=dosingstation&method=ajax_getCurrentBottle&param[]=' + station,
+				load: function( type, data, evt ) {
+					if ( data ) {
+						oldbottle = data; // all good
+					} else {
+						alert('Failed to retrieve bottle ID for reconciliation. Please reconcile manually.');
+					}
+				},
+				mimetype: 'text/json',
+				sync: true
+			});
 			// Set pump to closed
 			dojo.io.bind({
 				method: 'GET',
@@ -95,8 +110,9 @@ $btlno = $_SESSION['dosing']['btlno'];
 				sync: true
 			});
 
-			window.location = 'dosing_functions.php';
-			history.go(-1); // go back from where you came ...
+			//window.location = 'dosing_functions.php';
+			window.location = 'dosing_functions.php?action=type&type=reconcilebottle&bottle='+oldbottle;
+			//history.go(-1); // go back from where you came ...
 		},
 		onClearPump: function ( ) {
 			// Set up blocker
