@@ -24,16 +24,17 @@
 
 #	Handle configuration
 use Config::Tiny;
-$config = Config::Tiny->read( 'label.ini' );
+$config = Config::Tiny->read( '/home/freemed/label.ini' );
 
 #	Get parameters
 use Getopt::Std;
 my %o;
-getopt( 'pdPeDl', \%o );
+getopt( 'pdPeDlI', \%o );
 
 if ( ! $o{p} ) {
 	print "$0 (options .... ) \n";
 	print "\t-p (patient name)\n";
+	print "\t-I (patient id)\n";
 	print "\t-P (doctor name)\n";
 	print "\t-e (expires)\n";
 	print "\t-d (dosage)\n";
@@ -62,9 +63,10 @@ $label .= "${esc}H0400${esc}V0010${esc}XS" .  "Tel: " . $config->{installation}-
 $label .= "${esc}H0030${esc}V0025${esc}XU" .  $config->{installation}->{address};
 $label .= "${esc}H0000${esc}V0035${esc}FW02H0".${l};	# 2 width horizontal line
 
-#	Patient and dosage
+#	Patient name, id and dosage
 $label .= "${esc}H0030${esc}V0040${esc}XM" . $o{p};
-$label .= "${esc}H0400${esc}V0070${esc}XM" . $o{d} . " mg";
+$label .= "${esc}H0400${esc}V0040${esc}XM" . "ID #:" . $o{I};
+$label .= "${esc}H0400${esc}V0070${esc}XM" . "Dose:" . $o{d} . " mg";
 
 #	Dosage date and lot information
 $label .= "${esc}H0050${esc}V0070${esc}XS" . "Take on : " . $o{D};
@@ -109,6 +111,9 @@ $label .= "${esc}H0644${esc}V0000${esc}FW01V0170";	# 1 width vertical line
 
 #	End command
 $label .= "${esc}Z\003";
+
+# Form feed
+#### $label .= "${esc}A ${esc}Z\003";
 
 open LP, ">".$config->{printer}->{port} or die ("Could not open port");
 print LP $label;
