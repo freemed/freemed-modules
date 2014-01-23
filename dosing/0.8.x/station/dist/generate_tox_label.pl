@@ -56,7 +56,7 @@ my $l = 632;
 $label .= "${esc}A";
 #	Set 4" x 1"
 $label .= "${esc}A1" . "0101" . "0812";
-#	Print CODAC header with phone number
+#	Print header with phone number
 #	5W x 9H proportional font = XU
 $label .= "${esc}H0030${esc}V0010${esc}XS" .  $config->{installation}->{facility};
 $label .= "${esc}H0400${esc}V0010${esc}XS" .  "Tel: " . $config->{installation}->{phone};
